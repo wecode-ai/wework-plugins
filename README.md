@@ -16,6 +16,7 @@ plugins/<name>/                    # one plugin per directory
 
 - `dingtalk`: DingTalk collaboration through the local DWS CLI.
 - `lark`: Feishu/Lark collaboration through the official local CLI.
+- `product-design`: Product design exploration, audits, and interactive prototyping.
 - `wecom`: WeCom collaboration through the official local CLI.
 
 ## Adding a plugin
