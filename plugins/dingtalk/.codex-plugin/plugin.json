@@ -1,0 +1,40 @@
+{
+  "name": "dingtalk",
+  "version": "0.1.1",
+  "description": "Use DingTalk collaboration and productivity capabilities through a locally installed and authenticated DWS CLI.",
+  "author": {
+    "name": "Wegent"
+  },
+  "homepage": "https://github.com/open-dingtalk/dingtalk-workspace-cli",
+  "repository": "https://github.com/open-dingtalk/dingtalk-workspace-cli",
+  "license": "Apache-2.0",
+  "keywords": [
+    "dingtalk",
+    "dws",
+    "collaboration",
+    "productivity",
+    "local-auth"
+  ],
+  "skills": "./skills/",
+  "interface": {
+    "displayName": "钉钉",
+    "shortDescription": "通过本机 DWS 管理钉钉协作与办公能力",
+    "longDescription": "自动准备跨平台 DingTalk Workspace CLI，在本机浏览器完成 OAuth 授权，并支持 AI 表格、日历、通讯录、群聊、待办、审批、考勤、日志、DING、文档、云盘、AI 听记、邮箱、在线表格、知识库和开放平台文档等能力。凭据仅由本机 DWS 管理，不上传 Wegent Backend。",
+    "developerName": "Wegent",
+    "category": "Productivity",
+    "capabilities": [
+      "Interactive",
+      "Read",
+      "Write"
+    ],
+    "websiteURL": "https://www.dingtalk.com",
+    "privacyPolicyURL": "https://terms.alicdn.com/legal-agreement/terms/suit_bu1_dingtalk/suit_bu1_dingtalk202103191423_24331.html",
+    "termsOfServiceURL": "https://terms.alicdn.com/legal-agreement/terms/suit_bu1_dingtalk/suit_bu1_dingtalk201911251217_67969.html",
+    "brandColor": "#1677FF",
+    "composerIcon": "./assets/app-icon.svg",
+    "logo": "./assets/app-icon.svg",
+    "defaultPrompt": [
+      "请自动检查本机 DWS CLI 和钉钉登录状态，然后帮我处理钉钉中的日程、消息、文档、待办或其他办公任务。"
+    ]
+  }
+}

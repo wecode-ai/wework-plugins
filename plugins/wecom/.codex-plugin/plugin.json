@@ -1,0 +1,44 @@
+{
+  "name": "wecom",
+  "version": "0.1.0",
+  "description": "Use WeCom messaging, contacts, meetings, schedules, todos and documents through a locally installed and authenticated WeCom CLI.",
+  "author": {
+    "name": "Wegent"
+  },
+  "homepage": "https://github.com/WecomTeam/wecom-cli",
+  "repository": "https://github.com/WecomTeam/wecom-cli",
+  "license": "MIT",
+  "keywords": [
+    "wecom",
+    "wechat-work",
+    "enterprise-wechat",
+    "messaging",
+    "contacts",
+    "meeting",
+    "schedule",
+    "todo",
+    "document"
+  ],
+  "skills": "./skills/",
+  "interface": {
+    "displayName": "企业微信",
+    "shortDescription": "通过本机 WeCom CLI 使用企业微信协作能力",
+    "longDescription": "自动准备跨平台企业微信官方 CLI，通过浏览器和企业微信扫码在本机创建并加密保存机器人配置，支持消息、通讯录、会议、日程、待办、普通文档、在线表格、智能表格和智能文档。凭据不上传 Wegent Backend。",
+    "developerName": "Wegent",
+    "category": "Productivity",
+    "capabilities": [
+      "Interactive",
+      "Read",
+      "Write"
+    ],
+    "websiteURL": "https://work.weixin.qq.com",
+    "privacyPolicyURL": "https://work.weixin.qq.com/nl/privacypolicy",
+    "termsOfServiceURL": "https://work.weixin.qq.com/nl/service",
+    "brandColor": "#2BAD13",
+    "composerIcon": "./assets/app-icon.svg",
+    "logo": "./assets/app-icon.svg",
+    "defaultPrompt": [
+      "请自动检查企业微信 CLI 和本机机器人配置，然后帮我处理企业微信中的消息、通讯录、会议、日程、待办或文档任务。"
+    ]
+  }
+}

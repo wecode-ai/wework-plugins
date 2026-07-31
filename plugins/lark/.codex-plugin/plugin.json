@@ -1,0 +1,47 @@
+{
+  "name": "lark",
+  "version": "0.1.0",
+  "description": "Use Feishu/Lark messaging, documents, Base, spreadsheets, calendars, tasks, meetings and enterprise collaboration through a locally authenticated official CLI.",
+  "author": {
+    "name": "Wegent"
+  },
+  "homepage": "https://github.com/larksuite/cli",
+  "repository": "https://github.com/larksuite/cli",
+  "license": "MIT",
+  "keywords": [
+    "lark",
+    "feishu",
+    "collaboration",
+    "documents",
+    "base",
+    "spreadsheets",
+    "calendar",
+    "messaging",
+    "tasks",
+    "meetings"
+  ],
+  "skills": "./skills/",
+  "interface": {
+    "displayName": "飞书",
+    "shortDescription": "通过本机官方 CLI 使用飞书完整协作能力",
+    "longDescription": "自动准备跨平台飞书官方 CLI，通过浏览器扫码在本机创建应用并完成用户 OAuth，支持消息、通讯录、文档、云盘、知识库、多维表格、电子表格、幻灯片、日历、任务、审批、邮箱、会议、妙记、OKR、考勤和实时事件。App Secret 与用户 Token 不上传 Wegent Backend。",
+    "developerName": "Wegent",
+    "category": "Productivity",
+    "capabilities": [
+      "Interactive",
+      "Read",
+      "Write"
+    ],
+    "websiteURL": "https://www.feishu.cn",
+    "privacyPolicyURL": "https://www.feishu.cn/privacy",
+    "termsOfServiceURL": "https://www.feishu.cn/terms",
+    "brandColor": "#3370FF",
+    "composerIcon": "./assets/app-icon.svg",
+    "logo": "./assets/app-icon.svg",
+    "defaultPrompt": [
+      "请检查飞书 CLI 和本机授权，然后帮我处理飞书中的消息、文档、日程或任务。",
+      "帮我整理飞书云空间和知识库中的资料。",
+      "查看我的飞书日程和未完成任务并生成摘要。"
+    ]
+  }
+}
