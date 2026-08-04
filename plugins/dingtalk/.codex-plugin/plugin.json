@@ -1,6 +1,6 @@
 {
   "name": "dingtalk",
-  "version": "0.1.1",
+  "version": "0.2.0",
   "description": "Use DingTalk collaboration and productivity capabilities through a locally installed and authenticated DWS CLI.",
   "author": {
     "name": "Wegent"
@@ -16,6 +16,24 @@
     "local-auth"
   ],
   "skills": "./skills/",
+  "connectors": [
+    {
+      "slug": "dingtalk",
+      "authPolicy": "on_install",
+      "localAuth": {
+        "kind": "browser_oauth",
+        "health": ["scripts/local-auth.sh", "health"],
+        "start": ["scripts/local-auth.sh", "login"],
+        "logout": ["scripts/local-auth.sh", "logout"],
+        "timeoutSeconds": 300,
+        "logoutOnUninstall": false,
+        "tool": {
+          "id": "dws",
+          "source": "bundled"
+        }
+      }
+    }
+  ],
   "interface": {
     "displayName": "钉钉",
     "shortDescription": "通过本机 DWS 管理钉钉协作与办公能力",

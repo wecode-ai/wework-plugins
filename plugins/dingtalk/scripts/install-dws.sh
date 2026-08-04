@@ -5,6 +5,12 @@ set -eu
 DWS_RELEASE_VERSION="1.0.46"
 
 find_working_dws() {
+    if [ -n "${DWS_BINARY_PATH:-}" ] &&
+        [ -x "${DWS_BINARY_PATH}" ] &&
+        "${DWS_BINARY_PATH}" version >/dev/null 2>&1; then
+        printf '%s\n' "${DWS_BINARY_PATH}"
+        return 0
+    fi
     if command -v dws >/dev/null 2>&1; then
         DWS_CANDIDATE="$(command -v dws)"
         if "${DWS_CANDIDATE}" version >/dev/null 2>&1; then
@@ -162,4 +168,3 @@ if ! "${DWS_INSTALL_TARGET}" version >/dev/null 2>&1; then
 fi
 
 printf '%s\n' "${DWS_INSTALL_TARGET}"
-
