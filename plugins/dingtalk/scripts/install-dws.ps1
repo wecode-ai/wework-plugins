@@ -5,6 +5,17 @@ param(
 $ErrorActionPreference = 'Stop'
 Set-StrictMode -Version Latest
 
+if (-not [string]::IsNullOrWhiteSpace($env:DWS_BINARY_PATH) -and
+    (Test-Path -LiteralPath $env:DWS_BINARY_PATH -PathType Leaf)) {
+    & $env:DWS_BINARY_PATH version *> $null
+    if ($LASTEXITCODE -eq 0) {
+        if ($PrintPath) {
+            Write-Output $env:DWS_BINARY_PATH
+        }
+        exit 0
+    }
+}
+
 $dwsVersion = '1.0.46'
 
 function Test-Dws {
