@@ -1,0 +1,29 @@
+{
+  "name": "pdf",
+  "version": "0.1.0",
+  "description": "Create, inspect, extract, transform, render, and validate PDF files with local open-source tooling.",
+  "author": {
+    "name": "Wecode AI",
+    "url": "https://github.com/wecode-ai"
+  },
+  "homepage": "https://github.com/wecode-ai/wework-plugins/tree/main/plugins/pdf",
+  "repository": "https://github.com/wecode-ai/wework-plugins",
+  "license": "Apache-2.0",
+  "keywords": ["pdf", "extraction", "merge", "split", "rendering"],
+  "skills": "./skills/",
+  "interface": {
+    "displayName": "PDF",
+    "shortDescription": "Create and transform PDF files locally",
+    "longDescription": "Create text-first PDF documents, inspect metadata and page geometry, extract text, merge, split, rotate, validate, and render pages to images using local open-source tools.",
+    "developerName": "Wecode AI",
+    "category": "Productivity",
+    "capabilities": ["Interactive", "Read", "Write"],
+    "websiteURL": "https://github.com/wecode-ai/wework-plugins",
+    "defaultPrompt": [
+      "Create and verify a polished PDF from this content.",
+      "Extract the text and metadata from this PDF.",
+      "Merge these PDFs and render the result for review."
+    ],
+    "brandColor": "#DC2626"
+  }
+}

@@ -1,0 +1,4 @@
+interface:
+  display_name: "PDF"
+  short_description: "Create, inspect, transform, and validate PDF files"
+  default_prompt: "Use $pdf to create and verify a polished PDF from this content."

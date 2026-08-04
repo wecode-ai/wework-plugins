@@ -1,0 +1,4 @@
+interface:
+  display_name: "Documents"
+  short_description: "Create, inspect, edit, and validate DOCX files"
+  default_prompt: "Use $documents to create a polished DOCX document from this content."

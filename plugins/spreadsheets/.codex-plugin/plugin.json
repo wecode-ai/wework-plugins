@@ -1,0 +1,29 @@
+{
+  "name": "spreadsheets",
+  "version": "0.1.0",
+  "description": "Create, inspect, edit, export, render, and validate XLSX workbooks with local open-source tooling.",
+  "author": {
+    "name": "Wecode AI",
+    "url": "https://github.com/wecode-ai"
+  },
+  "homepage": "https://github.com/wecode-ai/wework-plugins/tree/main/plugins/spreadsheets",
+  "repository": "https://github.com/wecode-ai/wework-plugins",
+  "license": "Apache-2.0",
+  "keywords": ["spreadsheets", "xlsx", "excel", "csv", "workbooks"],
+  "skills": "./skills/",
+  "interface": {
+    "displayName": "Spreadsheets",
+    "shortDescription": "Create and edit XLSX workbooks locally",
+    "longDescription": "Build editable workbooks from structured data, inspect formulas and dimensions, update cells, export sheets to CSV, add common charts, validate workbook structure, and render sheets for visual review.",
+    "developerName": "Wecode AI",
+    "category": "Productivity",
+    "capabilities": ["Interactive", "Read", "Write"],
+    "websiteURL": "https://github.com/wecode-ai/wework-plugins",
+    "defaultPrompt": [
+      "Create an editable workbook from this dataset.",
+      "Inspect this spreadsheet and summarize its formulas and structure.",
+      "Update this XLSX and render it for visual review."
+    ],
+    "brandColor": "#15803D"
+  }
+}

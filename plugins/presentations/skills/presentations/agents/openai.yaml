@@ -1,0 +1,4 @@
+interface:
+  display_name: "Presentations"
+  short_description: "Create, inspect, edit, and validate PPTX decks"
+  default_prompt: "Use $presentations to create a clear presentation from this outline."

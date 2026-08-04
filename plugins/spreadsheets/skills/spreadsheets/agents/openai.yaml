@@ -1,0 +1,4 @@
+interface:
+  display_name: "Spreadsheets"
+  short_description: "Create, inspect, edit, and validate XLSX workbooks"
+  default_prompt: "Use $spreadsheets to build and verify an editable workbook from this data."

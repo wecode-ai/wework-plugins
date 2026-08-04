@@ -1,0 +1,29 @@
+{
+  "name": "documents",
+  "version": "0.1.0",
+  "description": "Create, inspect, edit, render, and validate DOCX documents with local open-source tooling.",
+  "author": {
+    "name": "Wecode AI",
+    "url": "https://github.com/wecode-ai"
+  },
+  "homepage": "https://github.com/wecode-ai/wework-plugins/tree/main/plugins/documents",
+  "repository": "https://github.com/wecode-ai/wework-plugins",
+  "license": "Apache-2.0",
+  "keywords": ["documents", "docx", "word", "editing", "rendering"],
+  "skills": "./skills/",
+  "interface": {
+    "displayName": "Documents",
+    "shortDescription": "Create and edit DOCX documents locally",
+    "longDescription": "Create structured DOCX files, inspect existing documents, replace text, validate package integrity, and render documents to PDF or page images using local open-source tools.",
+    "developerName": "Wecode AI",
+    "category": "Productivity",
+    "capabilities": ["Interactive", "Read", "Write"],
+    "websiteURL": "https://github.com/wecode-ai/wework-plugins",
+    "defaultPrompt": [
+      "Create a polished DOCX document from this outline.",
+      "Inspect and summarize the structure of this Word document.",
+      "Update this DOCX and verify the resulting file."
+    ],
+    "brandColor": "#2563EB"
+  }
+}
