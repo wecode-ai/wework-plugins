@@ -25,6 +25,11 @@ function Test-Authenticated {
     }
 }
 
+function Grant-RecommendedPermissions {
+    & $dws pat chmod --recommend --yes --format json *> $null
+    return ($LASTEXITCODE -eq 0)
+}
+
 if ([string]::IsNullOrWhiteSpace($dws) -or -not (Test-Path -LiteralPath $dws -PathType Leaf)) {
     Write-Status 'error' 'The bundled DWS CLI is unavailable.'
     exit 0
@@ -40,10 +45,14 @@ switch ($Action) {
     }
     'login' {
         if (Test-Authenticated) {
-            Write-Status 'ok' 'DingTalk authorization is ready.'
+            if (Grant-RecommendedPermissions) {
+                Write-Status 'ok' 'DingTalk authorization is ready.'
+            } else {
+                Write-Status 'error' 'DingTalk recommended permission authorization did not complete.'
+            }
             exit 0
         }
-        & $dws auth login --recommend --format json *> $null
+        & $dws auth login --recommend --yes --format json *> $null
         if ($LASTEXITCODE -eq 0 -and (Test-Authenticated)) {
             Write-Status 'ok' 'DingTalk authorization is ready.'
         } else {

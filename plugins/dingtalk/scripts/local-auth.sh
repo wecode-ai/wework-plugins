@@ -20,6 +20,10 @@ is_authenticated() {
         grep -E '"authenticated"[[:space:]]*:[[:space:]]*true' >/dev/null 2>&1
 }
 
+grant_recommended_permissions() {
+    "${DWS_EXECUTABLE}" pat chmod --recommend --yes --format json >/dev/null 2>&1
+}
+
 case "${ACTION}" in
     health)
         if is_authenticated; then
@@ -30,10 +34,14 @@ case "${ACTION}" in
         ;;
     login)
         if is_authenticated; then
-            json_status ok "DingTalk authorization is ready."
+            if grant_recommended_permissions; then
+                json_status ok "DingTalk authorization is ready."
+            else
+                json_status error "DingTalk recommended permission authorization did not complete."
+            fi
             exit 0
         fi
-        if "${DWS_EXECUTABLE}" auth login --recommend --format json >/dev/null 2>&1 &&
+        if "${DWS_EXECUTABLE}" auth login --recommend --yes --format json >/dev/null 2>&1 &&
             is_authenticated; then
             json_status ok "DingTalk authorization is ready."
         else

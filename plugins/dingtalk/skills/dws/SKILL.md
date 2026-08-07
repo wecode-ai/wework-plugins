@@ -25,7 +25,8 @@ metadata:
 
 安装器优先复用 PATH 中可用的 `dws`；没有时下载官方 DWS CLI，并在安装前
 校验官方清单中的 SHA-256。未登录时，准备脚本会执行
-`dws auth login --recommend`，由本机浏览器完成 OAuth 授权。只有浏览器授权、
+`dws auth login --recommend --yes`，由本机浏览器完成 OAuth 授权，并在登录后
+确认执行服务端推荐权限的批量授权。只有浏览器授权、
 企业管理员权限、网络/VPN 等必须由用户处理时才暂停并说明所需操作。禁止要求
 用户在聊天中粘贴 Token，禁止读取、打印或上传本机 DWS 凭据文件。
 
