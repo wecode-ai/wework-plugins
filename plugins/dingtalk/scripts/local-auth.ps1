@@ -30,6 +30,13 @@ function Grant-RecommendedPermissions {
     return ($LASTEXITCODE -eq 0)
 }
 
+function Invoke-LoginWithRecommendedPermissions {
+    # JSON mode returns PAT_BATCH_AUTH_PENDING to the host immediately. Table
+    # mode keeps the DWS-owned browser flow running until authorization ends.
+    & $dws auth login --recommend --format table *> $null
+    return ($LASTEXITCODE -eq 0)
+}
+
 if ([string]::IsNullOrWhiteSpace($dws) -or -not (Test-Path -LiteralPath $dws -PathType Leaf)) {
     Write-Status 'error' 'The bundled DWS CLI is unavailable.'
     exit 0
@@ -52,8 +59,7 @@ switch ($Action) {
             }
             exit 0
         }
-        & $dws auth login --recommend --yes --format json *> $null
-        if ($LASTEXITCODE -eq 0 -and (Test-Authenticated)) {
+        if ((Invoke-LoginWithRecommendedPermissions) -and (Test-Authenticated)) {
             Write-Status 'ok' 'DingTalk authorization is ready.'
         } else {
             Write-Status 'error' 'DingTalk browser authorization did not complete.'

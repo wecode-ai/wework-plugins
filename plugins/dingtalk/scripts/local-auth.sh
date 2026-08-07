@@ -24,6 +24,13 @@ grant_recommended_permissions() {
     "${DWS_EXECUTABLE}" pat chmod --recommend --yes --format json >/dev/null 2>&1
 }
 
+login_with_recommended_permissions() {
+    # JSON mode returns PAT_BATCH_AUTH_PENDING to the host immediately. Table
+    # mode keeps the DWS-owned browser flow running until the user approves,
+    # rejects, or the authorization expires.
+    "${DWS_EXECUTABLE}" auth login --recommend --format table >/dev/null 2>&1
+}
+
 case "${ACTION}" in
     health)
         if is_authenticated; then
@@ -41,7 +48,7 @@ case "${ACTION}" in
             fi
             exit 0
         fi
-        if "${DWS_EXECUTABLE}" auth login --recommend --yes --format json >/dev/null 2>&1 &&
+        if login_with_recommended_permissions &&
             is_authenticated; then
             json_status ok "DingTalk authorization is ready."
         else
