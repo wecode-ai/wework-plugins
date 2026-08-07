@@ -41,7 +41,7 @@ if (-not $loginRequired) {
 
 if ($loginRequired) {
     Write-Host 'DWS is not authenticated. Opening DingTalk browser authorization...'
-    & $dws auth login --recommend --format json
+    & $dws auth login --recommend --yes --format json
     if ($LASTEXITCODE -ne 0) {
         throw 'DWS browser authorization failed.'
     }

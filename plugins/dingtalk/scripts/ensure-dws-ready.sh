@@ -39,7 +39,7 @@ fi
 
 if [ "${DWS_LOGIN_REQUIRED}" = true ]; then
     echo "DWS is not authenticated. Opening DingTalk browser authorization..." >&2
-    "${DWS_EXECUTABLE}" auth login --recommend --format json
+    "${DWS_EXECUTABLE}" auth login --recommend --yes --format json
 fi
 
 if ! auth_status_is_authenticated; then

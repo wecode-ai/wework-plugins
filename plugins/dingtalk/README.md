@@ -11,8 +11,9 @@ Wegent/WeWork 可发布的 Codex 插件。
   DWS CLI 1.0.46 安装到当前用户目录：
   - macOS/Linux：`~/.wegent-executor/tools/dws/1.0.46/<platform>/dws`
   - Windows：`%LOCALAPPDATA%\Wegent\tools\dws\1.0.46\win32-x64\dws.exe`
-- 如果尚未登录，脚本执行 `dws auth login --recommend`。DWS 会打开本机
-  浏览器完成 OAuth 回调；凭据和自动刷新状态由 DWS 在本机管理。
+- 如果尚未登录，脚本执行 `dws auth login --recommend --yes`。DWS 会打开本机
+  浏览器完成 OAuth 回调，并在登录后批量授予服务端推荐权限；凭据和自动刷新
+  状态由 DWS 在本机管理。`--yes` 用于非交互安装流程确认执行推荐权限授权。
 - 准备脚本不会只相信 `auth status` 的退出码（该命令在未登录时也可能返回
   0）；它会解析 `authenticated` 字段，并用 `contact user get-self` 做一次
   不修改数据的鉴权探针。只有明确的认证错误才会触发重新登录。
