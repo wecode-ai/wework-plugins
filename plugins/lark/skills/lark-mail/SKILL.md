@@ -1,6 +1,6 @@
 ---
 name: lark-mail
-description: "飞书邮箱：Use when user mentions 起草邮件、写邮件、草稿、发送/回复/转发邮件、查阅邮件、看邮件、搜索邮件、邮件文件夹、邮件标签、邮件联系人、监听新邮件、邮件收信规则等；use for mail/email intent only. Do not use for docs/sheets/calendar/auth setup/pure contact lookup/IM chat tasks."
+description: "飞书邮箱：当用户提到起草邮件、写邮件、草稿、发送/回复/转发邮件、查阅邮件、看邮件、搜索邮件、邮件文件夹、邮件标签、邮件联系人、监听新邮件、邮件收信规则等时使用；仅用于邮件相关意图。不用于文档/表格/日历/授权配置/纯通讯录查询/IM 聊天任务。"
 ---
 
 ## Wegent 本地运行

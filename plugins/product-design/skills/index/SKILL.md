@@ -1,6 +1,6 @@
 ---
 name: index
-description: "Use when Product Design is explicitly invoked, or when the user's main goal is to explore a design, research UX, audit or critique a flow, faithfully clone a visual source, check a built design, or share a prototype. Do not use Product Design for ordinary implementation unless the user explicitly asks for it."
+description: "当明确调用 Product Design，或用户主要目标是探索设计、调研 UX、审计/点评流程、忠实复刻视觉源、检查已实现设计，或分享原型时使用。除非用户明确要求，不要把 Product Design 用于普通实现开发。"
 ---
 
 # Skill Purpose

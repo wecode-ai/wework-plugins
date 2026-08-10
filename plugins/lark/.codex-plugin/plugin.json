@@ -1,7 +1,7 @@
 {
   "name": "lark",
-  "version": "0.1.0",
-  "description": "Use Feishu/Lark messaging, documents, Base, spreadsheets, calendars, tasks, meetings and enterprise collaboration through a locally authenticated official CLI.",
+  "version": "0.1.1",
+  "description": "通过本机已完成认证的官方 CLI，使用飞书/Lark 消息、文档、多维表格、电子表格、日历、任务、会议与企业协作能力。",
   "author": {
     "name": "Wegent"
   },

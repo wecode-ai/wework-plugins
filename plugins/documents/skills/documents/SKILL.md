@@ -1,6 +1,6 @@
 ---
 name: documents
-description: Create, inspect, edit, render, and validate Microsoft Word DOCX files with local open-source tools. Use for drafting editable reports and memos, extracting document structure, replacing text while retaining document layout where possible, checking DOCX package integrity, and visually reviewing rendered pages.
+description: 使用本地开源工具创建、检查、编辑、渲染与校验 Microsoft Word DOCX 文件。适用于起草可编辑报告与备忘录、提取文档结构、在尽量保留版式的前提下替换文本、检查 DOCX 包完整性，以及对渲染页面做视觉审阅。
 ---
 
 # Documents

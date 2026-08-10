@@ -1,6 +1,6 @@
 ---
 name: share
-description: "Share a runnable prototype using the user's preferred deployment tool."
+description: "使用用户偏好的部署工具分享可运行的原型。"
 ---
 
 # Share

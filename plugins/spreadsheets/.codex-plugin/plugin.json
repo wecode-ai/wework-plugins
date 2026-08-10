@@ -1,7 +1,7 @@
 {
   "name": "spreadsheets",
-  "version": "0.1.0",
-  "description": "Create, inspect, edit, export, render, and validate XLSX workbooks with local open-source tooling.",
+  "version": "0.1.1",
+  "description": "使用本地开源工具创建、检查、编辑、导出、渲染与校验 XLSX 工作簿。",
   "author": {
     "name": "Wecode AI",
     "url": "https://github.com/wecode-ai"
@@ -12,17 +12,17 @@
   "keywords": ["spreadsheets", "xlsx", "excel", "csv", "workbooks"],
   "skills": "./skills/",
   "interface": {
-    "displayName": "Spreadsheets",
-    "shortDescription": "Create and edit XLSX workbooks locally",
-    "longDescription": "Build editable workbooks from structured data, inspect formulas and dimensions, update cells, export sheets to CSV, add common charts, validate workbook structure, and render sheets for visual review.",
+    "displayName": "电子表格",
+    "shortDescription": "在本地创建与编辑 XLSX 工作簿",
+    "longDescription": "根据结构化数据构建可编辑工作簿，检查公式与尺寸，更新单元格，将工作表导出为 CSV，添加常用图表，校验工作簿结构，并渲染工作表以便视觉审阅。",
     "developerName": "Wecode AI",
     "category": "Productivity",
     "capabilities": ["Interactive", "Read", "Write"],
     "websiteURL": "https://github.com/wecode-ai/wework-plugins",
     "defaultPrompt": [
-      "Create an editable workbook from this dataset.",
-      "Inspect this spreadsheet and summarize its formulas and structure.",
-      "Update this XLSX and render it for visual review."
+      "根据这份数据集创建一份可编辑的工作簿。",
+      "检查这份电子表格并总结其公式与结构。",
+      "更新这份 XLSX 并渲染以便视觉审阅。"
     ],
     "brandColor": "#15803D"
   }

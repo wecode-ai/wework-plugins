@@ -1,6 +1,6 @@
 ---
 name: lark-event
-description: "Lark/Feishu real-time event listening / subscribing / consuming: stream events as NDJSON via `lark-cli event consume EventKey` (covers IM messages/reactions/chat changes, Task updates, VC meeting started/joined/ended, Minutes generated, Whiteboard updated, etc.). Use for Lark bots, real-time message processing, long-running subscribers, streaming webhook/push handlers. Supports `--max-events` / `--timeout` bounded runs and a stderr ready-marker contract — designed for AI agents running as subprocesses."
+description: "飞书/Lark 实时事件监听/订阅/消费：通过 `lark-cli event consume EventKey` 以 NDJSON 流式输出事件（覆盖 IM 消息/表情/群聊变更、任务更新、视频会议开始/入会/结束、妙记生成、画板更新等）。适用于飞书机器人、实时消息处理、长时订阅者、流式 webhook/推送处理。支持 `--max-events` / `--timeout` 有界运行，以及 stderr ready-marker 约定——面向以子进程方式运行的 AI agent。"
 ---
 
 ## Wegent 本地运行
