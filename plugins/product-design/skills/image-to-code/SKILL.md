@@ -1,6 +1,6 @@
 ---
 name: image-to-code
-description: "Implement a selected image, screenshot, mockup, or Image Gen reference as a faithful, responsive frontend."
+description: "将选定的图片、截图、线框/视觉稿或 Image Gen 参考实现为忠实、响应式的前端界面。"
 ---
 
 # Image to Code

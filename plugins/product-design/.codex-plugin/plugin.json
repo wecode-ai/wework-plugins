@@ -1,7 +1,7 @@
 {
   "name": "product-design",
-  "version": "0.1.52",
-  "description": "The Product Design plugin is built for turning early ideas into prototypes teams can review. It starts design and build work by confirming the brief, then helps teams explore product directions, audit user flows, prototype from a live URL, and make static screenshots interactive.",
+  "version": "0.1.53",
+  "description": "Product Design 插件用于把早期想法变成团队可评审的原型。先确认 brief，再帮助探索产品方向、审计用户流程、基于线上 URL 做原型，以及把静态截图做成可交互界面。",
   "author": {
     "name": "OpenAI",
     "email": "support@openai.com",
@@ -29,9 +29,9 @@
   ],
   "skills": "./skills/",
   "interface": {
-    "displayName": "Product Design",
-    "shortDescription": "Explore and prototype ideas",
-    "longDescription": "Turn early ideas into prototypes teams can review. Explore product directions, audit user flows, research user friction, prototype from a live URL, and make static screenshots interactive. Start with a written brief, URL, screenshot, or existing design, then compare visual directions before building.\n\nUse available browser, Figma, Canva, image generation, and hosting tools to gather references, create concepts, review the result, and carry the work forward with your team.",
+    "displayName": "产品设计",
+    "shortDescription": "探索想法并快速做原型",
+    "longDescription": "把早期想法变成团队可评审的原型。探索产品方向、审计用户流程、调研用户摩擦、基于线上 URL 做原型，并把静态截图做成可交互界面。可从文字 brief、URL、截图或现有设计开始，先比较视觉方向再动手实现。\n\n可结合浏览器、Figma、Canva、图像生成与托管工具收集参考、产出概念、复审结果，并与团队继续推进。",
     "developerName": "OpenAI",
     "category": "Creativity",
     "capabilities": [
@@ -43,9 +43,9 @@
     "privacyPolicyURL": "https://openai.com/policies/privacy-policy/",
     "termsOfServiceURL": "https://openai.com/policies/terms-of-use/",
     "defaultPrompt": [
-      "Help me get started",
-      "Turn this product idea into three visual directions",
-      "Design a landing page for my business"
+      "帮我开始使用",
+      "把这个产品想法做成三个视觉方向",
+      "为我的业务设计一个落地页"
     ],
     "composerIcon": "./assets/composerIcon.svg",
     "logo": "./assets/logo.png",

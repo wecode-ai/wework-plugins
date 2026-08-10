@@ -1,7 +1,7 @@
 {
   "name": "documents",
-  "version": "0.1.0",
-  "description": "Create, inspect, edit, render, and validate DOCX documents with local open-source tooling.",
+  "version": "0.1.1",
+  "description": "使用本地开源工具创建、检查、编辑、渲染与校验 DOCX 文档。",
   "author": {
     "name": "Wecode AI",
     "url": "https://github.com/wecode-ai"
@@ -12,17 +12,17 @@
   "keywords": ["documents", "docx", "word", "editing", "rendering"],
   "skills": "./skills/",
   "interface": {
-    "displayName": "Documents",
-    "shortDescription": "Create and edit DOCX documents locally",
-    "longDescription": "Create structured DOCX files, inspect existing documents, replace text, validate package integrity, and render documents to PDF or page images using local open-source tools.",
+    "displayName": "文档",
+    "shortDescription": "在本地创建与编辑 DOCX 文档",
+    "longDescription": "使用本地开源工具创建结构化 DOCX、检查已有文档、替换文本、校验包完整性，并将文档渲染为 PDF 或页面图片。",
     "developerName": "Wecode AI",
     "category": "Productivity",
     "capabilities": ["Interactive", "Read", "Write"],
     "websiteURL": "https://github.com/wecode-ai/wework-plugins",
     "defaultPrompt": [
-      "Create a polished DOCX document from this outline.",
-      "Inspect and summarize the structure of this Word document.",
-      "Update this DOCX and verify the resulting file."
+      "根据这份大纲生成一份精致的 DOCX 文档。",
+      "检查并总结这份 Word 文档的结构。",
+      "更新这份 DOCX 并校验结果文件。"
     ],
     "brandColor": "#2563EB"
   }

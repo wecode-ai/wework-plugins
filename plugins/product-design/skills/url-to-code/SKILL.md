@@ -1,6 +1,6 @@
 ---
 name: url-to-code
-description: "Clone a live URL as a runnable frontend-only local app."
+description: "将线上 URL 克隆为可运行的纯前端本地应用。"
 ---
 
 # URL To Code

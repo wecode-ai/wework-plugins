@@ -1,6 +1,6 @@
 ---
 name: lark-shared
-description: "Use for lark-cli setup/auth tasks: auth login/status/logout, user vs bot identity, business-domain permissions (--domain, including all/docs/drive), missing scopes, revoking authorization, or handling _notice JSON."
+description: "用于 lark-cli 的配置与授权任务：auth login/status/logout、用户与机器人身份、业务域权限（--domain，含 all/docs/drive）、缺失 scope、撤销授权，或处理 _notice JSON。"
 ---
 
 ## Wegent 本地运行

@@ -1,9 +1,9 @@
 {
   "name": "product-design",
-  "version": "0.1.52",
+  "version": "0.1.53",
   "private": true,
   "type": "module",
-  "description": "The Product Design plugin is built for turning early ideas into prototypes teams can review. It starts design and build work by resolving the minimum brief, then helps teams explore product directions, audit user flows, prototype from a live URL, and make static screenshots interactive.",
+  "description": "Product Design 插件用于把早期想法变成团队可评审的原型。先确认最小 brief，再帮助探索产品方向、审计用户流程、基于线上 URL 做原型，以及把静态截图做成可交互界面。",
   "repository": "https://github.com/openai/openai/tree/master/chatgpt/oai-maintained-plugins/plugins/product-design",
   "scripts": {
     "prototype:bootstrap": "node scripts/bootstrap-prototype.mjs",

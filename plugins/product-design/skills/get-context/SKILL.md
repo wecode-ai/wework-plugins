@@ -1,6 +1,6 @@
 ---
 name: get-context
-description: "Mandatory design-brief gate for clarifying the product and outcome. Use before ideation, image-to-code builds, redesigns, or product UI work to clarify missing product information and play back the brief before proceeding."
+description: "必经的设计 brief 门槛，用于澄清产品与目标结果。在 ideation、image-to-code、重设计或产品 UI 工作开始前使用，先补齐缺失的产品信息并复述 brief，再继续推进。"
 ---
 
 # Get Context

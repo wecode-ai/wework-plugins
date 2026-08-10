@@ -1,6 +1,6 @@
 ---
 name: presentations
-description: Create, inspect, edit, render, and validate editable PPTX slide decks with local open-source tools. Use for building presentations from an outline, extracting slide text and geometry, replacing content, checking shapes against slide boundaries, and visually reviewing rendered slides.
+description: 使用本地开源工具创建、检查、编辑、渲染与校验可编辑的 PPTX 幻灯片。适用于根据大纲制作演示文稿、提取幻灯片文本与几何信息、替换内容、检查形状是否越界，以及对渲染后的幻灯片做视觉审阅。
 ---
 
 # Presentations

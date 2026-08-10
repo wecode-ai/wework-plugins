@@ -1,6 +1,6 @@
 ---
 name: pdf
-description: Create, inspect, extract, merge, split, rotate, render, and validate PDF files with local open-source tools. Use when a request targets PDF output or input, requires page-level transforms, needs text or table extraction, or requires visual verification of a generated PDF.
+description: 使用本地开源工具创建、检查、提取、合并、拆分、旋转、渲染与校验 PDF 文件。当需求涉及 PDF 输入或输出、页面级转换、文本或表格提取，或需要对生成的 PDF 做视觉核验时使用。
 ---
 
 # PDF

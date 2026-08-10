@@ -1,6 +1,6 @@
 ---
 name: ideate
-description: "Generate image-based alternatives, remixes, or new design directions from a Product Design brief. Use when the user asks for design variants, visual exploration, remixes, or image-generated approaches from provided context."
+description: "基于 Product Design brief 生成图像化备选方案、remix 或新的设计方向。当用户需要设计变体、视觉探索、remix，或基于已有上下文用图像生成方案时使用。"
 ---
 
 # Ideate

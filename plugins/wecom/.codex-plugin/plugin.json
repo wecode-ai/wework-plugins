@@ -1,7 +1,7 @@
 {
   "name": "wecom",
-  "version": "0.1.0",
-  "description": "Use WeCom messaging, contacts, meetings, schedules, todos and documents through a locally installed and authenticated WeCom CLI.",
+  "version": "0.1.1",
+  "description": "通过本机已安装并完成认证的企业微信 CLI，使用消息、通讯录、会议、日程、待办与文档等协作能力。",
   "author": {
     "name": "Wegent"
   },

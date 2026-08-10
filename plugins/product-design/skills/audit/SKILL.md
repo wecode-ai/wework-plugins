@@ -1,6 +1,6 @@
 ---
 name: audit
-description: "Audit or critique a product flow, journey, workflow, funnel, onboarding path, checkout path, settings path, screen, or multi-step product experience by capturing screenshots first, then reporting UX, design, and accessibility findings inline from that evidence. Use Figma only when the user explicitly asks for a board. Use when the user asks to audit, review, critique, inspect, assess, analyze, evaluate, or give feedback on a product experience."
+description: "审计或点评产品流程、用户旅程、工作流、漏斗、引导路径、结账路径、设置路径、单个界面或多步产品体验：先截图取证，再基于证据内联报告 UX、设计与无障碍问题。仅在用户明确要求时使用 Figma 看板。当用户要求审计、复审、点评、检查、评估、分析或反馈产品体验时使用。"
 ---
 
 # Audit

@@ -1,6 +1,6 @@
 ---
 name: spreadsheets
-description: Create, inspect, edit, export, render, and validate XLSX workbooks with local open-source tools. Use for building editable spreadsheets from structured data, examining formulas and sheet geometry, changing cells, exporting worksheets to CSV, adding common charts, and visually reviewing workbook output.
+description: 使用本地开源工具创建、检查、编辑、导出、渲染与校验 XLSX 工作簿。适用于根据结构化数据构建可编辑表格、检查公式与工作表几何、修改单元格、将工作表导出为 CSV、添加常用图表，以及对工作簿输出做视觉审阅。
 ---
 
 # Spreadsheets

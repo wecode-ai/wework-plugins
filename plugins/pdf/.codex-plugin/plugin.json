@@ -1,7 +1,7 @@
 {
   "name": "pdf",
-  "version": "0.1.0",
-  "description": "Create, inspect, extract, transform, render, and validate PDF files with local open-source tooling.",
+  "version": "0.1.1",
+  "description": "使用本地开源工具创建、检查、提取、转换、渲染与校验 PDF 文件。",
   "author": {
     "name": "Wecode AI",
     "url": "https://github.com/wecode-ai"
@@ -13,16 +13,16 @@
   "skills": "./skills/",
   "interface": {
     "displayName": "PDF",
-    "shortDescription": "Create and transform PDF files locally",
-    "longDescription": "Create text-first PDF documents, inspect metadata and page geometry, extract text, merge, split, rotate, validate, and render pages to images using local open-source tools.",
+    "shortDescription": "在本地创建与转换 PDF 文件",
+    "longDescription": "使用本地开源工具创建以文本为主的 PDF、检查元数据与页面几何、提取文本、合并、拆分、旋转、校验，并将页面渲染为图片。",
     "developerName": "Wecode AI",
     "category": "Productivity",
     "capabilities": ["Interactive", "Read", "Write"],
     "websiteURL": "https://github.com/wecode-ai/wework-plugins",
     "defaultPrompt": [
-      "Create and verify a polished PDF from this content.",
-      "Extract the text and metadata from this PDF.",
-      "Merge these PDFs and render the result for review."
+      "根据这些内容创建并校验一份精致的 PDF。",
+      "提取这份 PDF 的文本与元数据。",
+      "合并这些 PDF 并渲染结果以便审阅。"
     ],
     "brandColor": "#DC2626"
   }

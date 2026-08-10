@@ -1,7 +1,7 @@
 {
   "name": "presentations",
-  "version": "0.1.0",
-  "description": "Create, inspect, edit, render, and validate PPTX presentations with local open-source tooling.",
+  "version": "0.1.1",
+  "description": "使用本地开源工具创建、检查、编辑、渲染与校验 PPTX 演示文稿。",
   "author": {
     "name": "Wecode AI",
     "url": "https://github.com/wecode-ai"
@@ -12,17 +12,17 @@
   "keywords": ["presentations", "pptx", "slides", "powerpoint", "rendering"],
   "skills": "./skills/",
   "interface": {
-    "displayName": "Presentations",
-    "shortDescription": "Create and edit PPTX presentations locally",
-    "longDescription": "Build editable 16:9 slide decks from structured content, inspect and update existing presentations, run layout checks, and render slides to PDF or page images using local open-source tools.",
+    "displayName": "演示文稿",
+    "shortDescription": "在本地创建与编辑 PPTX 演示文稿",
+    "longDescription": "使用本地开源工具根据结构化内容构建可编辑的 16:9 幻灯片、检查并更新已有演示文稿、执行版式检查，并将幻灯片渲染为 PDF 或页面图片。",
     "developerName": "Wecode AI",
     "category": "Productivity",
     "capabilities": ["Interactive", "Read", "Write"],
     "websiteURL": "https://github.com/wecode-ai/wework-plugins",
     "defaultPrompt": [
-      "Create an editable presentation from this outline.",
-      "Inspect this slide deck and identify layout problems.",
-      "Revise this PPTX and render it for visual review."
+      "根据这份大纲创建一份可编辑的演示文稿。",
+      "检查这份幻灯片并指出版式问题。",
+      "修订这份 PPTX 并渲染以便视觉审阅。"
     ],
     "brandColor": "#C2410C"
   }

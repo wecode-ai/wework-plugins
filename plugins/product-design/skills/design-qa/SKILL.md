@@ -1,6 +1,6 @@
 ---
 name: design-qa
-description: "Internal prototype QA helper. Use only after a Product Design prototype, URL-to-code build, or image-to-code build has a source visual target and a rendered implementation to compare before handoff. Do not use for broad UX critique, design critique, product audits, or flow reviews; route those user-facing requests to audit."
+description: "内部原型 QA 助手。仅在 Product Design 原型、URL-to-code 或 image-to-code 产物已有视觉对照源与可渲染实现、需要在交付前做比对时使用。不用于广义 UX 点评、设计点评、产品审计或流程复审；这类面向用户的请求请路由到 audit。"
 ---
 
 # Design QA
