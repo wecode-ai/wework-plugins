@@ -1,6 +1,6 @@
 {
   "name": "presentations",
-  "version": "0.1.1",
+  "version": "0.1.2",
   "description": "使用本地开源工具创建、检查、编辑、渲染与校验 PPTX 演示文稿。",
   "author": {
     "name": "Wecode AI",
@@ -24,6 +24,8 @@
       "检查这份幻灯片并指出版式问题。",
       "修订这份 PPTX 并渲染以便视觉审阅。"
     ],
-    "brandColor": "#C2410C"
+    "brandColor": "#C2410C",
+    "logo": "./assets/app-icon.svg",
+    "composerIcon": "./assets/app-icon.svg"
   }
 }

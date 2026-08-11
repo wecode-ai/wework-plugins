@@ -1,6 +1,6 @@
 {
   "name": "documents",
-  "version": "0.1.1",
+  "version": "0.1.2",
   "description": "使用本地开源工具创建、检查、编辑、渲染与校验 DOCX 文档。",
   "author": {
     "name": "Wecode AI",
@@ -24,6 +24,8 @@
       "检查并总结这份 Word 文档的结构。",
       "更新这份 DOCX 并校验结果文件。"
     ],
-    "brandColor": "#2563EB"
+    "brandColor": "#2563EB",
+    "logo": "./assets/app-icon.svg",
+    "composerIcon": "./assets/app-icon.svg"
   }
 }
