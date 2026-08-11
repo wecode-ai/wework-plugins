@@ -1,6 +1,6 @@
 {
   "name": "dingtalk",
-  "version": "0.2.3",
+  "version": "0.2.4",
   "description": "通过本机已安装并完成认证的 DWS CLI，使用钉钉协作与办公能力。",
   "author": {
     "name": "Wegent"
@@ -39,7 +39,7 @@
     "shortDescription": "通过本机 DWS 管理钉钉协作与办公能力",
     "longDescription": "自动准备跨平台 DingTalk Workspace CLI，在本机浏览器完成 OAuth 授权，并支持 AI 表格、日历、通讯录、群聊、待办、审批、考勤、日志、DING、文档、云盘、AI 听记、邮箱、在线表格、知识库和开放平台文档等能力。凭据仅由本机 DWS 管理，不上传 Wegent Backend。",
     "developerName": "Wegent",
-    "category": "Productivity",
+    "category": "协作",
     "capabilities": [
       "Interactive",
       "Read",

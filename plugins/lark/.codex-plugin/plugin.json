@@ -1,6 +1,6 @@
 {
   "name": "lark",
-  "version": "0.1.1",
+  "version": "0.1.2",
   "description": "通过本机已完成认证的官方 CLI，使用飞书/Lark 消息、文档、多维表格、电子表格、日历、任务、会议与企业协作能力。",
   "author": {
     "name": "Wegent"
@@ -26,7 +26,7 @@
     "shortDescription": "通过本机官方 CLI 使用飞书完整协作能力",
     "longDescription": "自动准备跨平台飞书官方 CLI，通过浏览器扫码在本机创建应用并完成用户 OAuth，支持消息、通讯录、文档、云盘、知识库、多维表格、电子表格、幻灯片、日历、任务、审批、邮箱、会议、妙记、OKR、考勤和实时事件。App Secret 与用户 Token 不上传 Wegent Backend。",
     "developerName": "Wegent",
-    "category": "Productivity",
+    "category": "协作",
     "capabilities": [
       "Interactive",
       "Read",

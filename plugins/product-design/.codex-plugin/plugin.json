@@ -1,6 +1,6 @@
 {
   "name": "product-design",
-  "version": "0.1.53",
+  "version": "0.1.54",
   "description": "Product Design 插件用于把早期想法变成团队可评审的原型。先确认 brief，再帮助探索产品方向、审计用户流程、基于线上 URL 做原型，以及把静态截图做成可交互界面。",
   "author": {
     "name": "OpenAI",
@@ -33,7 +33,7 @@
     "shortDescription": "探索想法并快速做原型",
     "longDescription": "把早期想法变成团队可评审的原型。探索产品方向、审计用户流程、调研用户摩擦、基于线上 URL 做原型，并把静态截图做成可交互界面。可从文字 brief、URL、截图或现有设计开始，先比较视觉方向再动手实现。\n\n可结合浏览器、Figma、Canva、图像生成与托管工具收集参考、产出概念、复审结果，并与团队继续推进。",
     "developerName": "OpenAI",
-    "category": "Creativity",
+    "category": "创意",
     "capabilities": [
       "Interactive",
       "Read",

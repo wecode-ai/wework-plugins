@@ -1,6 +1,6 @@
 {
   "name": "product-design",
-  "version": "0.1.53",
+  "version": "0.1.54",
   "private": true,
   "type": "module",
   "description": "Product Design 插件用于把早期想法变成团队可评审的原型。先确认最小 brief，再帮助探索产品方向、审计用户流程、基于线上 URL 做原型，以及把静态截图做成可交互界面。",
