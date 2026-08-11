@@ -1,6 +1,6 @@
 {
   "name": "pdf",
-  "version": "0.1.1",
+  "version": "0.1.2",
   "description": "使用本地开源工具创建、检查、提取、转换、渲染与校验 PDF 文件。",
   "author": {
     "name": "Wecode AI",
@@ -24,6 +24,8 @@
       "提取这份 PDF 的文本与元数据。",
       "合并这些 PDF 并渲染结果以便审阅。"
     ],
-    "brandColor": "#DC2626"
+    "brandColor": "#DC2626",
+    "logo": "./assets/app-icon.svg",
+    "composerIcon": "./assets/app-icon.svg"
   }
 }

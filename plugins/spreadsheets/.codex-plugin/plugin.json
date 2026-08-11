@@ -1,6 +1,6 @@
 {
   "name": "spreadsheets",
-  "version": "0.1.1",
+  "version": "0.1.2",
   "description": "使用本地开源工具创建、检查、编辑、导出、渲染与校验 XLSX 工作簿。",
   "author": {
     "name": "Wecode AI",
@@ -24,6 +24,8 @@
       "检查这份电子表格并总结其公式与结构。",
       "更新这份 XLSX 并渲染以便视觉审阅。"
     ],
-    "brandColor": "#15803D"
+    "brandColor": "#15803D",
+    "logo": "./assets/app-icon.svg",
+    "composerIcon": "./assets/app-icon.svg"
   }
 }
