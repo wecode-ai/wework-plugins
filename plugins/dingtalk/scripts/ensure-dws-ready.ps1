@@ -2,11 +2,15 @@ $ErrorActionPreference = 'Stop'
 Set-StrictMode -Version Latest
 
 $scriptDirectory = Split-Path -Parent $MyInvocation.MyCommand.Path
+. (Join-Path $scriptDirectory 'invoke-dws.ps1')
 $dws = & (Join-Path $scriptDirectory 'install-dws.ps1') -PrintPath |
     Select-Object -Last 1
 
 function Test-AuthenticatedStatus {
-    $statusText = (& $dws auth status --format json 2>$null) -join "`n"
+    $result = Invoke-DwsCommand -Executable $dws `
+        -Arguments @('auth', 'status', '--format', 'json') `
+        -OutputMode stdout
+    $statusText = $result.Output
     if ([string]::IsNullOrWhiteSpace($statusText)) {
         return $false
     }
@@ -19,10 +23,13 @@ function Test-AuthenticatedStatus {
 }
 
 function Get-AuthProbeResult {
-    $probeText = (& $dws contact user get-self --format json 2>&1) -join "`n"
-    if ($LASTEXITCODE -eq 0) {
+    $result = Invoke-DwsCommand -Executable $dws `
+        -Arguments @('contact', 'user', 'get-self', '--format', 'json') `
+        -OutputMode all
+    if ($result.ExitCode -eq 0) {
         return 'authenticated'
     }
+    $probeText = $result.Output
     if ($probeText -match 'not_authenticated|AUTH_TOKEN_EXPIRED|USER_TOKEN_ILLEGAL|未登录|Token验证失败') {
         return 'unauthenticated'
     }
@@ -43,8 +50,9 @@ if ($loginRequired) {
     Write-Host 'DWS is not authenticated. Opening DingTalk browser authorization...'
     # Table mode lets DWS own and poll the PAT browser flow. JSON mode returns
     # PAT_BATCH_AUTH_PENDING to this wrapper before the user can approve it.
-    & $dws auth login --recommend --format table
-    if ($LASTEXITCODE -ne 0) {
+    $result = Invoke-DwsCommand -Executable $dws `
+        -Arguments @('auth', 'login', '--recommend', '--format', 'table')
+    if ($result.ExitCode -ne 0) {
         throw 'DWS browser authorization failed.'
     }
 }

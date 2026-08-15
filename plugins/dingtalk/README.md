@@ -25,6 +25,18 @@ Wegent/WeWork 可发布的 Codex 插件。
 发布包没有内置任何用户凭据或平台专用二进制。下载地址和 SHA-256 来自
 官方 DWS CLI 1.0.46 binary manifest。
 
+## 本地验证
+
+```bash
+sh scripts/test-local-auth.sh
+```
+
+Windows PowerShell 5.1：
+
+```powershell
+powershell -NoProfile -ExecutionPolicy Bypass -File scripts/test-local-auth.ps1
+```
+
 ## 来源与许可
 
 `skills/dws/` 基于 DingTalk Workspace CLI 发行的 Apache-2.0 Skill 资料，

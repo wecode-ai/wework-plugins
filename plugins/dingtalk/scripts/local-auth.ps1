@@ -6,6 +6,9 @@ param(
 $ErrorActionPreference = 'Stop'
 Set-StrictMode -Version Latest
 
+$scriptDirectory = Split-Path -Parent $MyInvocation.MyCommand.Path
+. (Join-Path $scriptDirectory 'invoke-dws.ps1')
+
 $dws = $env:WEGENT_LOCAL_AUTH_TOOL
 
 function Write-Status([string]$Status, [string]$Hint) {
@@ -13,7 +16,10 @@ function Write-Status([string]$Status, [string]$Hint) {
 }
 
 function Test-Authenticated {
-    $statusText = (& $dws auth status --format json 2>$null) -join "`n"
+    $result = Invoke-DwsCommand -Executable $dws `
+        -Arguments @('auth', 'status', '--format', 'json') `
+        -OutputMode stdout
+    $statusText = $result.Output
     if ([string]::IsNullOrWhiteSpace($statusText)) {
         return $false
     }
@@ -26,15 +32,17 @@ function Test-Authenticated {
 }
 
 function Grant-RecommendedPermissions {
-    & $dws pat chmod --recommend --yes --format json *> $null
-    return ($LASTEXITCODE -eq 0)
+    $result = Invoke-DwsCommand -Executable $dws `
+        -Arguments @('pat', 'chmod', '--recommend', '--yes', '--format', 'json')
+    return ($result.ExitCode -eq 0)
 }
 
 function Invoke-LoginWithRecommendedPermissions {
     # JSON mode returns PAT_BATCH_AUTH_PENDING to the host immediately. Table
     # mode keeps the DWS-owned browser flow running until authorization ends.
-    & $dws auth login --recommend --format table *> $null
-    return ($LASTEXITCODE -eq 0)
+    $result = Invoke-DwsCommand -Executable $dws `
+        -Arguments @('auth', 'login', '--recommend', '--format', 'table')
+    return ($result.ExitCode -eq 0)
 }
 
 if ([string]::IsNullOrWhiteSpace($dws) -or -not (Test-Path -LiteralPath $dws -PathType Leaf)) {
@@ -70,8 +78,9 @@ switch ($Action) {
             Write-Status 'ok' 'DingTalk is already logged out.'
             exit 0
         }
-        & $dws auth logout --yes --format json *> $null
-        if ($LASTEXITCODE -eq 0) {
+        $result = Invoke-DwsCommand -Executable $dws `
+            -Arguments @('auth', 'logout', '--yes', '--format', 'json')
+        if ($result.ExitCode -eq 0) {
             Write-Status 'ok' 'DingTalk login was removed.'
         } else {
             Write-Status 'error' 'Unable to remove the DingTalk login.'

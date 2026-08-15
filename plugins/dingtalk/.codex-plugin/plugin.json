@@ -1,6 +1,6 @@
 {
   "name": "dingtalk",
-  "version": "0.2.4",
+  "version": "0.2.5",
   "description": "通过本机已安装并完成认证的 DWS CLI，使用钉钉协作与办公能力。",
   "author": {
     "name": "Wegent"
