@@ -22,6 +22,23 @@ function Test-AuthenticatedStatus {
     }
 }
 
+function Wait-AuthenticatedStatus {
+    param(
+        [int]$Attempts = 10,
+        [int]$DelayMilliseconds = 500
+    )
+
+    for ($attempt = 1; $attempt -le $Attempts; $attempt++) {
+        if (Test-AuthenticatedStatus) {
+            return $true
+        }
+        if ($attempt -lt $Attempts) {
+            Start-Sleep -Milliseconds $DelayMilliseconds
+        }
+    }
+    return $false
+}
+
 function Get-AuthProbeResult {
     $result = Invoke-DwsCommand -Executable $dws `
         -Arguments @('contact', 'user', 'get-self', '--format', 'json') `
@@ -52,12 +69,15 @@ if ($loginRequired) {
     # permissions, which DWS handles when a command requires them.
     $result = Invoke-DwsCommand -Executable $dws `
         -Arguments @('auth', 'login', '--format', 'json')
-    if ($result.ExitCode -ne 0) {
-        throw 'DWS browser authorization failed.'
+    if (-not (Wait-AuthenticatedStatus)) {
+        if ($result.ExitCode -ne 0) {
+            throw "DWS browser authorization failed (exit code $($result.ExitCode))."
+        }
+        throw 'DWS authorization did not produce a usable local login.'
     }
 }
 
-if (-not (Test-AuthenticatedStatus)) {
+if (-not (Wait-AuthenticatedStatus)) {
     throw 'DWS authorization did not produce a usable local login.'
 }
 $finalProbe = Get-AuthProbeResult

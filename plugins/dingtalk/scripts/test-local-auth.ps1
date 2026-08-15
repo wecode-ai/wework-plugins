@@ -62,6 +62,7 @@ if "%DWS_MOCK_LOGIN_FAIL%"=="1" exit /b 4
 echo %*| findstr /c:"--format json" >nul || exit /b 4
 echo %*| findstr /c:"--recommend" >nul && exit /b 4
 type nul >"%DWS_MOCK_STATE_DIR%\authenticated"
+if "%DWS_MOCK_LOGIN_EXIT_AFTER_AUTH%"=="1" exit /b 4
 exit /b 0
 
 :logout
@@ -83,6 +84,16 @@ exit /b 4
     Assert-Contains $freshCalls 'auth login auth login --format json'
     Assert-NotContains $freshCalls '--recommend'
 
+    $nonzeroAuthState = Join-Path $testRoot 'nonzero-auth'
+    New-Item -ItemType Directory -Path $nonzeroAuthState | Out-Null
+    $env:DWS_MOCK_LOGIN_EXIT_AFTER_AUTH = '1'
+    $nonzeroAuthOutput = Invoke-AuthTest 'login' $nonzeroAuthState
+    Assert-Contains $nonzeroAuthOutput '"status":"ok"'
+    if (-not (Test-Path -LiteralPath (Join-Path $nonzeroAuthState 'authenticated'))) {
+        throw 'A persisted OAuth login must win over the native process exit code.'
+    }
+    Remove-Item Env:DWS_MOCK_LOGIN_EXIT_AFTER_AUTH
+
     $retryState = Join-Path $testRoot 'retry'
     New-Item -ItemType Directory -Path $retryState | Out-Null
     New-Item -ItemType File -Path (Join-Path $retryState 'authenticated') | Out-Null
@@ -97,7 +108,7 @@ exit /b 4
     $env:DWS_MOCK_LOGIN_FAIL = '1'
     $failedOutput = Invoke-AuthTest 'login' $failedState
     Assert-Contains $failedOutput '"status":"error"'
-    Assert-Contains $failedOutput 'browser authorization did not complete'
+    Assert-Contains $failedOutput 'OAuth command failed (exit code 4)'
     if (Test-Path -LiteralPath (Join-Path $failedState 'authenticated')) {
         throw 'A failed OAuth login must not be reported as authenticated.'
     }
@@ -118,10 +129,23 @@ exit /b 4
     Assert-Contains $readyCalls 'auth login auth login --format json'
     Assert-NotContains $readyCalls '--recommend'
 
+    $nonzeroReadyState = Join-Path $testRoot 'nonzero-ready'
+    New-Item -ItemType Directory -Path $nonzeroReadyState | Out-Null
+    $env:DWS_MOCK_STATE_DIR = $nonzeroReadyState
+    $env:DWS_MOCK_LOGIN_EXIT_AFTER_AUTH = '1'
+    $nonzeroReadyOutput = (& $powershell -NoProfile -ExecutionPolicy Bypass `
+        -File $readyScript) -join "`n"
+    if ($LASTEXITCODE -ne 0) {
+        throw "ensure-dws-ready.ps1 exited with code $LASTEXITCODE after persisting login."
+    }
+    Assert-Contains $nonzeroReadyOutput 'DWS is installed and authenticated.'
+    Remove-Item Env:DWS_MOCK_LOGIN_EXIT_AFTER_AUTH
+
     Write-Host 'DingTalk Windows local authorization tests passed.'
 } finally {
     Remove-Item Env:DWS_MOCK_STATE_DIR -ErrorAction SilentlyContinue
     Remove-Item Env:DWS_MOCK_LOGIN_FAIL -ErrorAction SilentlyContinue
+    Remove-Item Env:DWS_MOCK_LOGIN_EXIT_AFTER_AUTH -ErrorAction SilentlyContinue
     Remove-Item Env:WEGENT_LOCAL_AUTH_TOOL -ErrorAction SilentlyContinue
     Remove-Item Env:DWS_BINARY_PATH -ErrorAction SilentlyContinue
     Remove-Item -LiteralPath $testRoot -Recurse -Force `

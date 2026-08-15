@@ -36,7 +36,24 @@ function Invoke-Login {
     # PAT permissions are operation-specific and must not keep this dialog open.
     $result = Invoke-DwsCommand -Executable $dws `
         -Arguments @('auth', 'login', '--format', 'json')
-    return ($result.ExitCode -eq 0)
+    return $result.ExitCode
+}
+
+function Wait-Authenticated {
+    param(
+        [int]$Attempts = 10,
+        [int]$DelayMilliseconds = 500
+    )
+
+    for ($attempt = 1; $attempt -le $Attempts; $attempt++) {
+        if (Test-Authenticated) {
+            return $true
+        }
+        if ($attempt -lt $Attempts) {
+            Start-Sleep -Milliseconds $DelayMilliseconds
+        }
+    }
+    return $false
 }
 
 if ([string]::IsNullOrWhiteSpace($dws) -or -not (Test-Path -LiteralPath $dws -PathType Leaf)) {
@@ -57,10 +74,16 @@ switch ($Action) {
             Write-Status 'ok' 'DingTalk authorization is ready.'
             exit 0
         }
-        if ((Invoke-Login) -and (Test-Authenticated)) {
+        $loginExitCode = Invoke-Login
+        # The browser can finish OAuth and persist the credential even when the
+        # native command reports a non-zero exit on Windows. The stored state is
+        # authoritative, and a short wait covers credential-store visibility.
+        if (Wait-Authenticated) {
             Write-Status 'ok' 'DingTalk authorization is ready.'
+        } elseif ($loginExitCode -ne 0) {
+            Write-Status 'error' "DingTalk OAuth command failed (exit code $loginExitCode)."
         } else {
-            Write-Status 'error' 'DingTalk browser authorization did not complete.'
+            Write-Status 'error' 'DingTalk OAuth callback completed, but DWS did not persist an authenticated login.'
         }
     }
     'logout' {

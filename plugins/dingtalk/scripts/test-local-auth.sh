@@ -39,6 +39,9 @@ if [ "${1:-}" = "auth" ]; then
                 ! has_arg --recommend "$@"; then
                 : >"${DWS_MOCK_STATE_DIR}/authenticated"
                 printf '{"success":true}\n'
+                if [ "${DWS_MOCK_LOGIN_EXIT_AFTER_AUTH:-0}" = "1" ]; then
+                    exit 4
+                fi
                 exit 0
             fi
             exit 4
@@ -92,6 +95,17 @@ assert_contains "$(cat "${FRESH_STATE}/calls")" 'auth login --format json'
 assert_not_contains "$(cat "${FRESH_STATE}/calls")" '--recommend'
 test -f "${FRESH_STATE}/authenticated"
 
+NONZERO_AUTH_STATE="${TEST_ROOT}/nonzero-auth"
+mkdir -p "${NONZERO_AUTH_STATE}"
+NONZERO_AUTH_OUTPUT="$(
+    DWS_MOCK_LOGIN_EXIT_AFTER_AUTH=1 \
+        DWS_MOCK_STATE_DIR="${NONZERO_AUTH_STATE}" \
+        WEGENT_LOCAL_AUTH_TOOL="$0" \
+        sh "${AUTH_SCRIPT}" login
+)"
+assert_contains "${NONZERO_AUTH_OUTPUT}" '"status":"ok"'
+test -f "${NONZERO_AUTH_STATE}/authenticated"
+
 REJECTED_STATE="${TEST_ROOT}/rejected"
 mkdir -p "${REJECTED_STATE}"
 REJECTED_OUTPUT="$(
@@ -101,7 +115,7 @@ REJECTED_OUTPUT="$(
         sh "${AUTH_SCRIPT}" login
 )"
 assert_contains "${REJECTED_OUTPUT}" '"status":"error"'
-assert_contains "${REJECTED_OUTPUT}" 'browser authorization did not complete'
+assert_contains "${REJECTED_OUTPUT}" 'OAuth command failed (exit code 4)'
 test ! -f "${REJECTED_STATE}/authenticated"
 
 RETRY_STATE="${TEST_ROOT}/retry"
@@ -126,5 +140,16 @@ assert_contains "${READY_OUTPUT}" 'DWS is installed and authenticated.'
 assert_contains "$(cat "${READY_STATE}/calls")" 'auth login --format json'
 assert_not_contains "$(cat "${READY_STATE}/calls")" '--recommend'
 test -f "${READY_STATE}/authenticated"
+
+NONZERO_READY_STATE="${TEST_ROOT}/nonzero-ready"
+mkdir -p "${NONZERO_READY_STATE}"
+NONZERO_READY_OUTPUT="$(
+    DWS_BINARY_PATH="$0" \
+        DWS_MOCK_LOGIN_EXIT_AFTER_AUTH=1 \
+        DWS_MOCK_STATE_DIR="${NONZERO_READY_STATE}" \
+        sh "${SCRIPT_DIRECTORY}/ensure-dws-ready.sh" 2>&1
+)"
+assert_contains "${NONZERO_READY_OUTPUT}" 'DWS is installed and authenticated.'
+test -f "${NONZERO_READY_STATE}/authenticated"
 
 printf 'DingTalk local authorization tests passed.\n'
