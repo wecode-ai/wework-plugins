@@ -44,10 +44,14 @@ if "%~1"=="contact" if "%~2"=="user" goto contact
 exit /b 4
 
 :version
-echo dws version 1.0.54
+echo dws version 1.0.58
 exit /b 0
 
 :status
+if "%DWS_MOCK_STATUS_REASON%"=="1" (
+  echo {"authenticated":false,"reason":"token_refresh_failed","message":"Token refresh failed"}
+  exit /b 0
+)
 if exist "%DWS_MOCK_STATE_DIR%\authenticated" (
   echo {"authenticated":true}
 ) else (
@@ -61,6 +65,7 @@ echo Opening DingTalk browser authorization... 1>&2
 if "%DWS_MOCK_LOGIN_FAIL%"=="1" exit /b 4
 echo %*| findstr /c:"--format json" >nul || exit /b 4
 echo %*| findstr /c:"--recommend" >nul && exit /b 4
+if "%DWS_MOCK_LOGIN_NO_PERSIST%"=="1" exit /b 0
 type nul >"%DWS_MOCK_STATE_DIR%\authenticated"
 if "%DWS_MOCK_LOGIN_EXIT_AFTER_AUTH%"=="1" exit /b 4
 exit /b 0
@@ -114,6 +119,17 @@ exit /b 4
     }
     Remove-Item Env:DWS_MOCK_LOGIN_FAIL
 
+    $diagnosticState = Join-Path $testRoot 'diagnostic'
+    New-Item -ItemType Directory -Path $diagnosticState | Out-Null
+    $env:DWS_MOCK_LOGIN_NO_PERSIST = '1'
+    $env:DWS_MOCK_STATUS_REASON = '1'
+    $diagnosticOutput = Invoke-AuthTest 'login' $diagnosticState
+    Assert-Contains $diagnosticOutput '"status":"error"'
+    Assert-Contains $diagnosticOutput 'reason=token_refresh_failed'
+    Assert-NotContains $diagnosticOutput 'Token refresh failed'
+    Remove-Item Env:DWS_MOCK_LOGIN_NO_PERSIST
+    Remove-Item Env:DWS_MOCK_STATUS_REASON
+
     $readyState = Join-Path $testRoot 'ready'
     New-Item -ItemType Directory -Path $readyState | Out-Null
     $env:DWS_MOCK_STATE_DIR = $readyState
@@ -146,6 +162,8 @@ exit /b 4
     Remove-Item Env:DWS_MOCK_STATE_DIR -ErrorAction SilentlyContinue
     Remove-Item Env:DWS_MOCK_LOGIN_FAIL -ErrorAction SilentlyContinue
     Remove-Item Env:DWS_MOCK_LOGIN_EXIT_AFTER_AUTH -ErrorAction SilentlyContinue
+    Remove-Item Env:DWS_MOCK_LOGIN_NO_PERSIST -ErrorAction SilentlyContinue
+    Remove-Item Env:DWS_MOCK_STATUS_REASON -ErrorAction SilentlyContinue
     Remove-Item Env:WEGENT_LOCAL_AUTH_TOOL -ErrorAction SilentlyContinue
     Remove-Item Env:DWS_BINARY_PATH -ErrorAction SilentlyContinue
     Remove-Item -LiteralPath $testRoot -Recurse -Force `

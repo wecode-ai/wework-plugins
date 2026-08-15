@@ -16,7 +16,7 @@ if (-not [string]::IsNullOrWhiteSpace($env:DWS_BINARY_PATH) -and
     }
 }
 
-$dwsVersion = '1.0.46'
+$dwsVersion = '1.0.58'
 
 function Test-Dws {
     param([string]$Executable)
@@ -50,11 +50,11 @@ if (Test-Dws $existing) {
 }
 
 if ($env:PROCESSOR_ARCHITECTURE.ToUpperInvariant() -ne 'AMD64') {
-    throw "The verified DWS 1.0.46 manifest supports Windows x64, not $env:PROCESSOR_ARCHITECTURE."
+    throw "The verified DWS 1.0.58 manifest supports Windows x64, not $env:PROCESSOR_ARCHITECTURE."
 }
 
-$archiveUrl = 'https://p11-market.byteimg.com/tos-cn-i-17oceyzymr/binaries/dws-cli/1.0.46/win32-x64-1783747458807783552.zip'
-$expectedHash = '65ce216a994d575cb686615463715f67d9bfb2f709f93a71196d16627e0d3b48'
+$archiveUrl = 'https://github.com/DingTalk-Real-AI/dingtalk-workspace-cli/releases/download/v1.0.58/dws-windows-amd64.zip'
+$expectedHash = 'b8c50d9111115eafdb466978f1dd8f9421bcc2d5fac848023108353dc5a236cb'
 $temporaryDirectory = Join-Path ([System.IO.Path]::GetTempPath()) `
     ("wegent-dws-" + [Guid]::NewGuid().ToString('N'))
 New-Item -ItemType Directory -Path $temporaryDirectory | Out-Null

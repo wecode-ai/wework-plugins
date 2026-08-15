@@ -14,14 +14,16 @@ has_arg() {
 }
 
 if [ "${1:-}" = "version" ]; then
-    printf 'dws version 1.0.54\n'
+    printf 'dws version 1.0.58\n'
     exit 0
 fi
 
 if [ "${1:-}" = "auth" ]; then
     case "${2:-}" in
         status)
-            if [ -f "${DWS_MOCK_STATE_DIR}/authenticated" ]; then
+            if [ "${DWS_MOCK_STATUS_REASON:-0}" = "1" ]; then
+                printf '{"authenticated":false,"reason":"token_refresh_failed"}\n'
+            elif [ -f "${DWS_MOCK_STATE_DIR}/authenticated" ]; then
                 printf '{"authenticated":true}\n'
             else
                 printf '{"authenticated":false}\n'
@@ -37,6 +39,10 @@ if [ "${1:-}" = "auth" ]; then
             if has_arg --format "$@" &&
                 has_arg json "$@" &&
                 ! has_arg --recommend "$@"; then
+                if [ "${DWS_MOCK_LOGIN_NO_PERSIST:-0}" = "1" ]; then
+                    printf '{"success":true}\n'
+                    exit 0
+                fi
                 : >"${DWS_MOCK_STATE_DIR}/authenticated"
                 printf '{"success":true}\n'
                 if [ "${DWS_MOCK_LOGIN_EXIT_AFTER_AUTH:-0}" = "1" ]; then
@@ -117,6 +123,18 @@ REJECTED_OUTPUT="$(
 assert_contains "${REJECTED_OUTPUT}" '"status":"error"'
 assert_contains "${REJECTED_OUTPUT}" 'OAuth command failed (exit code 4)'
 test ! -f "${REJECTED_STATE}/authenticated"
+
+DIAGNOSTIC_STATE="${TEST_ROOT}/diagnostic"
+mkdir -p "${DIAGNOSTIC_STATE}"
+DIAGNOSTIC_OUTPUT="$(
+    DWS_MOCK_LOGIN_NO_PERSIST=1 \
+        DWS_MOCK_STATUS_REASON=1 \
+        DWS_MOCK_STATE_DIR="${DIAGNOSTIC_STATE}" \
+        WEGENT_LOCAL_AUTH_TOOL="$0" \
+        sh "${AUTH_SCRIPT}" login
+)"
+assert_contains "${DIAGNOSTIC_OUTPUT}" '"status":"error"'
+assert_contains "${DIAGNOSTIC_OUTPUT}" 'reason=token_refresh_failed'
 
 RETRY_STATE="${TEST_ROOT}/retry"
 mkdir -p "${RETRY_STATE}"

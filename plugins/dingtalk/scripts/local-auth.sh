@@ -16,8 +16,24 @@ fi
 
 is_authenticated() {
     AUTH_STATUS="$("${DWS_EXECUTABLE}" auth status --format json 2>/dev/null || true)"
-    printf '%s\n' "${AUTH_STATUS}" |
-        grep -E '"authenticated"[[:space:]]*:[[:space:]]*true' >/dev/null 2>&1
+    if printf '%s\n' "${AUTH_STATUS}" |
+        grep -E '"authenticated"[[:space:]]*:[[:space:]]*true' >/dev/null 2>&1; then
+        AUTH_STATUS_DETAIL=""
+        return 0
+    fi
+    AUTH_STATUS_REASON="$(
+        printf '%s\n' "${AUTH_STATUS}" |
+            sed -n 's/.*"reason"[[:space:]]*:[[:space:]]*"\([A-Za-z0-9_.-]*\)".*/\1/p' |
+            head -n 1
+    )"
+    if [ -n "${AUTH_STATUS_REASON}" ]; then
+        AUTH_STATUS_DETAIL="DWS auth status reported reason=${AUTH_STATUS_REASON}."
+    elif [ -n "${AUTH_STATUS}" ]; then
+        AUTH_STATUS_DETAIL="DWS auth status reported authenticated=false."
+    else
+        AUTH_STATUS_DETAIL="DWS auth status returned no output."
+    fi
+    return 1
 }
 
 login() {
@@ -63,9 +79,9 @@ case "${ACTION}" in
         if wait_for_authentication; then
             json_status ok "DingTalk authorization is ready."
         elif [ "${LOGIN_EXIT_CODE}" -ne 0 ]; then
-            json_status error "DingTalk OAuth command failed (exit code ${LOGIN_EXIT_CODE})."
+            json_status error "DingTalk OAuth command failed (exit code ${LOGIN_EXIT_CODE}); ${AUTH_STATUS_DETAIL}"
         else
-            json_status error "DingTalk OAuth callback completed, but DWS did not persist an authenticated login."
+            json_status error "DingTalk OAuth callback completed, but ${AUTH_STATUS_DETAIL}"
         fi
         ;;
     logout)
