@@ -14,6 +14,12 @@ function Assert-Contains([string]$Value, [string]$Expected) {
     }
 }
 
+function Assert-NotContains([string]$Value, [string]$Unexpected) {
+    if ($Value.Contains($Unexpected)) {
+        throw "Expected output not to contain '$Unexpected', got: $Value"
+    }
+}
+
 function Invoke-AuthTest([string]$Action, [string]$StateDirectory) {
     $env:DWS_MOCK_STATE_DIR = $StateDirectory
     $env:WEGENT_LOCAL_AUTH_TOOL = $mockDws
@@ -34,7 +40,6 @@ if "%~1"=="version" goto version
 if "%~1"=="auth" if "%~2"=="status" goto status
 if "%~1"=="auth" if "%~2"=="login" goto login
 if "%~1"=="auth" if "%~2"=="logout" goto logout
-if "%~1"=="pat" if "%~2"=="chmod" goto chmod
 if "%~1"=="contact" if "%~2"=="user" goto contact
 exit /b 4
 
@@ -53,16 +58,10 @@ exit /b 0
 :login
 echo auth login %*>>"%DWS_MOCK_STATE_DIR%\calls"
 echo Opening DingTalk browser authorization... 1>&2
-type nul >"%DWS_MOCK_STATE_DIR%\authenticated"
 if "%DWS_MOCK_LOGIN_FAIL%"=="1" exit /b 4
-type nul >"%DWS_MOCK_STATE_DIR%\recommended"
-exit /b 0
-
-:chmod
-echo pat chmod %*>>"%DWS_MOCK_STATE_DIR%\calls"
-echo Waiting for recommended permission authorization... 1>&2
-if "%DWS_MOCK_GRANT_FAIL%"=="1" exit /b 4
-type nul >"%DWS_MOCK_STATE_DIR%\recommended"
+echo %*| findstr /c:"--format json" >nul || exit /b 4
+echo %*| findstr /c:"--recommend" >nul && exit /b 4
+type nul >"%DWS_MOCK_STATE_DIR%\authenticated"
 exit /b 0
 
 :logout
@@ -80,16 +79,18 @@ exit /b 4
     New-Item -ItemType Directory -Path $freshState | Out-Null
     $freshOutput = Invoke-AuthTest 'login' $freshState
     Assert-Contains $freshOutput '"status":"ok"'
-    Assert-Contains (Get-Content -LiteralPath (Join-Path $freshState 'calls') -Raw) `
-        'auth login auth login --recommend --format table'
+    $freshCalls = Get-Content -LiteralPath (Join-Path $freshState 'calls') -Raw
+    Assert-Contains $freshCalls 'auth login auth login --format json'
+    Assert-NotContains $freshCalls '--recommend'
 
     $retryState = Join-Path $testRoot 'retry'
     New-Item -ItemType Directory -Path $retryState | Out-Null
     New-Item -ItemType File -Path (Join-Path $retryState 'authenticated') | Out-Null
     $retryOutput = Invoke-AuthTest 'login' $retryState
     Assert-Contains $retryOutput '"status":"ok"'
-    Assert-Contains (Get-Content -LiteralPath (Join-Path $retryState 'calls') -Raw) `
-        'pat chmod pat chmod --recommend --yes --format json'
+    if (Test-Path -LiteralPath (Join-Path $retryState 'calls')) {
+        throw 'An existing login must not start operation-specific permission authorization.'
+    }
 
     $failedState = Join-Path $testRoot 'failed'
     New-Item -ItemType Directory -Path $failedState | Out-Null
@@ -97,6 +98,9 @@ exit /b 4
     $failedOutput = Invoke-AuthTest 'login' $failedState
     Assert-Contains $failedOutput '"status":"error"'
     Assert-Contains $failedOutput 'browser authorization did not complete'
+    if (Test-Path -LiteralPath (Join-Path $failedState 'authenticated')) {
+        throw 'A failed OAuth login must not be reported as authenticated.'
+    }
     Remove-Item Env:DWS_MOCK_LOGIN_FAIL
 
     $readyState = Join-Path $testRoot 'ready'
@@ -110,12 +114,14 @@ exit /b 4
         throw "ensure-dws-ready.ps1 exited with code $LASTEXITCODE."
     }
     Assert-Contains $readyOutput 'DWS is installed and authenticated.'
+    $readyCalls = Get-Content -LiteralPath (Join-Path $readyState 'calls') -Raw
+    Assert-Contains $readyCalls 'auth login auth login --format json'
+    Assert-NotContains $readyCalls '--recommend'
 
     Write-Host 'DingTalk Windows local authorization tests passed.'
 } finally {
     Remove-Item Env:DWS_MOCK_STATE_DIR -ErrorAction SilentlyContinue
     Remove-Item Env:DWS_MOCK_LOGIN_FAIL -ErrorAction SilentlyContinue
-    Remove-Item Env:DWS_MOCK_GRANT_FAIL -ErrorAction SilentlyContinue
     Remove-Item Env:WEGENT_LOCAL_AUTH_TOOL -ErrorAction SilentlyContinue
     Remove-Item Env:DWS_BINARY_PATH -ErrorAction SilentlyContinue
     Remove-Item -LiteralPath $testRoot -Recurse -Force `

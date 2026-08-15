@@ -20,15 +20,10 @@ is_authenticated() {
         grep -E '"authenticated"[[:space:]]*:[[:space:]]*true' >/dev/null 2>&1
 }
 
-grant_recommended_permissions() {
-    "${DWS_EXECUTABLE}" pat chmod --recommend --yes --format json >/dev/null 2>&1
-}
-
-login_with_recommended_permissions() {
-    # JSON mode returns PAT_BATCH_AUTH_PENDING to the host immediately. Table
-    # mode keeps the DWS-owned browser flow running until the user approves,
-    # rejects, or the authorization expires.
-    "${DWS_EXECUTABLE}" auth login --recommend --format table >/dev/null 2>&1
+login() {
+    # Installation authentication ends with the OAuth callback. Recommended
+    # PAT permissions are operation-specific and must not keep this dialog open.
+    "${DWS_EXECUTABLE}" auth login --format json >/dev/null 2>&1
 }
 
 case "${ACTION}" in
@@ -41,14 +36,10 @@ case "${ACTION}" in
         ;;
     login)
         if is_authenticated; then
-            if grant_recommended_permissions; then
-                json_status ok "DingTalk authorization is ready."
-            else
-                json_status error "DingTalk recommended permission authorization did not complete."
-            fi
+            json_status ok "DingTalk authorization is ready."
             exit 0
         fi
-        if login_with_recommended_permissions &&
+        if login &&
             is_authenticated; then
             json_status ok "DingTalk authorization is ready."
         else

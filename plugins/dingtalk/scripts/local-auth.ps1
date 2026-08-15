@@ -31,17 +31,11 @@ function Test-Authenticated {
     }
 }
 
-function Grant-RecommendedPermissions {
+function Invoke-Login {
+    # Installation authentication ends with the OAuth callback. Recommended
+    # PAT permissions are operation-specific and must not keep this dialog open.
     $result = Invoke-DwsCommand -Executable $dws `
-        -Arguments @('pat', 'chmod', '--recommend', '--yes', '--format', 'json')
-    return ($result.ExitCode -eq 0)
-}
-
-function Invoke-LoginWithRecommendedPermissions {
-    # JSON mode returns PAT_BATCH_AUTH_PENDING to the host immediately. Table
-    # mode keeps the DWS-owned browser flow running until authorization ends.
-    $result = Invoke-DwsCommand -Executable $dws `
-        -Arguments @('auth', 'login', '--recommend', '--format', 'table')
+        -Arguments @('auth', 'login', '--format', 'json')
     return ($result.ExitCode -eq 0)
 }
 
@@ -60,14 +54,10 @@ switch ($Action) {
     }
     'login' {
         if (Test-Authenticated) {
-            if (Grant-RecommendedPermissions) {
-                Write-Status 'ok' 'DingTalk authorization is ready.'
-            } else {
-                Write-Status 'error' 'DingTalk recommended permission authorization did not complete.'
-            }
+            Write-Status 'ok' 'DingTalk authorization is ready.'
             exit 0
         }
-        if ((Invoke-LoginWithRecommendedPermissions) -and (Test-Authenticated)) {
+        if ((Invoke-Login) -and (Test-Authenticated)) {
             Write-Status 'ok' 'DingTalk authorization is ready.'
         } else {
             Write-Status 'error' 'DingTalk browser authorization did not complete.'

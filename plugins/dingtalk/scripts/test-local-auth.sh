@@ -30,20 +30,17 @@ if [ "${1:-}" = "auth" ]; then
         login)
             shift 2
             printf 'auth login %s\n' "$*" >>"${DWS_MOCK_STATE_DIR}/calls"
-            : >"${DWS_MOCK_STATE_DIR}/authenticated"
+            printf 'Opening DingTalk browser authorization...\n' >&2
             if [ "${DWS_MOCK_LOGIN_FAIL:-0}" = "1" ]; then
-                printf '{"success":false,"code":"PAT_BATCH_AUTH_PENDING"}\n' >&2
                 exit 4
             fi
-            if has_arg --recommend "$@" &&
-                has_arg --format "$@" &&
-                has_arg table "$@" &&
-                ! has_arg --yes "$@"; then
-                : >"${DWS_MOCK_STATE_DIR}/recommended"
+            if has_arg --format "$@" &&
+                has_arg json "$@" &&
+                ! has_arg --recommend "$@"; then
+                : >"${DWS_MOCK_STATE_DIR}/authenticated"
                 printf '{"success":true}\n'
                 exit 0
             fi
-            printf '{"success":false,"code":"PAT_BATCH_AUTH_PENDING"}\n' >&2
             exit 4
             ;;
     esac
@@ -54,20 +51,6 @@ if [ "${1:-}" = "contact" ] &&
     [ "${2:-}" = "user" ] &&
     [ "${3:-}" = "get-self" ]; then
     if [ -f "${DWS_MOCK_STATE_DIR}/authenticated" ]; then
-        printf '{"success":true}\n'
-        exit 0
-    fi
-    exit 4
-fi
-
-if [ "${1:-}" = "pat" ] && [ "${2:-}" = "chmod" ]; then
-    shift 2
-    printf 'pat chmod %s\n' "$*" >>"${DWS_MOCK_STATE_DIR}/calls"
-    if [ "${DWS_MOCK_FAIL_GRANT:-0}" = "1" ]; then
-        exit 4
-    fi
-    if has_arg --recommend "$@" && has_arg --yes "$@"; then
-        : >"${DWS_MOCK_STATE_DIR}/recommended"
         printf '{"success":true}\n'
         exit 0
     fi
@@ -105,9 +88,9 @@ FRESH_OUTPUT="$(
         sh "${AUTH_SCRIPT}" login
 )"
 assert_contains "${FRESH_OUTPUT}" '"status":"ok"'
-assert_contains "$(cat "${FRESH_STATE}/calls")" 'auth login --recommend --format table'
-assert_not_contains "$(cat "${FRESH_STATE}/calls")" '--yes'
-test -f "${FRESH_STATE}/recommended"
+assert_contains "$(cat "${FRESH_STATE}/calls")" 'auth login --format json'
+assert_not_contains "$(cat "${FRESH_STATE}/calls")" '--recommend'
+test -f "${FRESH_STATE}/authenticated"
 
 REJECTED_STATE="${TEST_ROOT}/rejected"
 mkdir -p "${REJECTED_STATE}"
@@ -119,8 +102,7 @@ REJECTED_OUTPUT="$(
 )"
 assert_contains "${REJECTED_OUTPUT}" '"status":"error"'
 assert_contains "${REJECTED_OUTPUT}" 'browser authorization did not complete'
-test -f "${REJECTED_STATE}/authenticated"
-test ! -f "${REJECTED_STATE}/recommended"
+test ! -f "${REJECTED_STATE}/authenticated"
 
 RETRY_STATE="${TEST_ROOT}/retry"
 mkdir -p "${RETRY_STATE}"
@@ -131,20 +113,7 @@ RETRY_OUTPUT="$(
         sh "${AUTH_SCRIPT}" login
 )"
 assert_contains "${RETRY_OUTPUT}" '"status":"ok"'
-assert_contains "$(cat "${RETRY_STATE}/calls")" 'pat chmod --recommend --yes --format json'
-test -f "${RETRY_STATE}/recommended"
-
-FAILED_STATE="${TEST_ROOT}/failed"
-mkdir -p "${FAILED_STATE}"
-: >"${FAILED_STATE}/authenticated"
-FAILED_OUTPUT="$(
-    DWS_MOCK_FAIL_GRANT=1 \
-        DWS_MOCK_STATE_DIR="${FAILED_STATE}" \
-        WEGENT_LOCAL_AUTH_TOOL="$0" \
-        sh "${AUTH_SCRIPT}" login
-)"
-assert_contains "${FAILED_OUTPUT}" '"status":"error"'
-assert_contains "${FAILED_OUTPUT}" 'recommended permission authorization did not complete'
+test ! -f "${RETRY_STATE}/calls"
 
 READY_STATE="${TEST_ROOT}/ready"
 mkdir -p "${READY_STATE}"
@@ -154,8 +123,8 @@ READY_OUTPUT="$(
         sh "${SCRIPT_DIRECTORY}/ensure-dws-ready.sh" 2>&1
 )"
 assert_contains "${READY_OUTPUT}" 'DWS is installed and authenticated.'
-assert_contains "$(cat "${READY_STATE}/calls")" 'auth login --recommend --format table'
-assert_not_contains "$(cat "${READY_STATE}/calls")" '--yes'
-test -f "${READY_STATE}/recommended"
+assert_contains "$(cat "${READY_STATE}/calls")" 'auth login --format json'
+assert_not_contains "$(cat "${READY_STATE}/calls")" '--recommend'
+test -f "${READY_STATE}/authenticated"
 
 printf 'DingTalk local authorization tests passed.\n'

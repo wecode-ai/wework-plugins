@@ -39,9 +39,9 @@ fi
 
 if [ "${DWS_LOGIN_REQUIRED}" = true ]; then
     echo "DWS is not authenticated. Opening DingTalk browser authorization..." >&2
-    # Keep the DWS-owned PAT flow alive until the browser authorization ends.
-    # JSON mode would return PAT_BATCH_AUTH_PENDING to this wrapper immediately.
-    "${DWS_EXECUTABLE}" auth login --recommend --format table
+    # Complete local OAuth login without blocking on operation-specific PAT
+    # permissions, which DWS handles when a command requires them.
+    "${DWS_EXECUTABLE}" auth login --format json
 fi
 
 if ! auth_status_is_authenticated; then

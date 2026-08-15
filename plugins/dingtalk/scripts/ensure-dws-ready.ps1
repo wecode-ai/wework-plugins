@@ -48,10 +48,10 @@ if (-not $loginRequired) {
 
 if ($loginRequired) {
     Write-Host 'DWS is not authenticated. Opening DingTalk browser authorization...'
-    # Table mode lets DWS own and poll the PAT browser flow. JSON mode returns
-    # PAT_BATCH_AUTH_PENDING to this wrapper before the user can approve it.
+    # Complete local OAuth login without blocking on operation-specific PAT
+    # permissions, which DWS handles when a command requires them.
     $result = Invoke-DwsCommand -Executable $dws `
-        -Arguments @('auth', 'login', '--recommend', '--format', 'table')
+        -Arguments @('auth', 'login', '--format', 'json')
     if ($result.ExitCode -ne 0) {
         throw 'DWS browser authorization failed.'
     }
