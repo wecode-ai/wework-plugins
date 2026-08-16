@@ -12,9 +12,12 @@ Wegent/WeWork 可发布的 Codex 插件。
   - macOS/Linux：`~/.wegent-executor/tools/dws/1.0.58/<platform>/dws`
   - Windows：`%LOCALAPPDATA%\Wegent\tools\dws\1.0.58\win32-x64\dws.exe`
 - 如果尚未登录，脚本执行 `dws auth login --format json`，打开本机浏览器完成
-  OAuth 回调，并在确认本机登录态可用后结束安装授权。推荐 PAT 权限属于具体操作，
+  OAuth 回调，并在回调成功后最多用 30 秒确认本机登录态可用。状态检查会重试
+  DWS 凭据落盘期间的瞬态空输出、无效 JSON 或尚未包含认证字段的 JSON。推荐 PAT 权限属于具体操作，
   不在安装弹框中预先申请，避免 OAuth 已成功后仍因第二段权限轮询而持续等待。
-  凭据和自动刷新状态由 DWS 在本机管理。
+  Windows 上即使 DWS 登录进程在凭据落盘后仍未退出，插件也会以已持久化状态为准，
+  从登录命令输出确认成功、清理残留进程释放凭据锁，再验证本机状态并完成授权。
+  每次状态检查都有独立超时，不会因为凭据锁或 CLI 异常而无限阻塞。凭据和自动刷新状态由 DWS 在本机管理。
 - 准备脚本不会只相信 `auth status` 的退出码（该命令在未登录时也可能返回
   0）；它会解析 `authenticated` 字段，并用 `contact user get-self` 做一次
   不修改数据的鉴权探针。只有明确的认证错误才会触发重新登录。
