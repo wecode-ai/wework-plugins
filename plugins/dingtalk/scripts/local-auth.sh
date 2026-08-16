@@ -16,19 +16,44 @@ fi
 
 is_authenticated() {
     AUTH_STATUS="$("${DWS_EXECUTABLE}" auth status --format json 2>/dev/null || true)"
-    printf '%s\n' "${AUTH_STATUS}" |
-        grep -E '"authenticated"[[:space:]]*:[[:space:]]*true' >/dev/null 2>&1
+    if printf '%s\n' "${AUTH_STATUS}" |
+        grep -E '"authenticated"[[:space:]]*:[[:space:]]*true' >/dev/null 2>&1; then
+        AUTH_STATUS_DETAIL=""
+        return 0
+    fi
+    AUTH_STATUS_REASON="$(
+        printf '%s\n' "${AUTH_STATUS}" |
+            sed -n 's/.*"reason"[[:space:]]*:[[:space:]]*"\([A-Za-z0-9_.-]*\)".*/\1/p' |
+            head -n 1
+    )"
+    if [ -n "${AUTH_STATUS_REASON}" ]; then
+        AUTH_STATUS_DETAIL="DWS auth status reported reason=${AUTH_STATUS_REASON}."
+    elif [ -n "${AUTH_STATUS}" ]; then
+        AUTH_STATUS_DETAIL="DWS auth status reported authenticated=false."
+    else
+        AUTH_STATUS_DETAIL="DWS auth status returned no output."
+    fi
+    return 1
 }
 
-grant_recommended_permissions() {
-    "${DWS_EXECUTABLE}" pat chmod --recommend --yes --format json >/dev/null 2>&1
+login() {
+    # Installation authentication ends with the OAuth callback. Recommended
+    # PAT permissions are operation-specific and must not keep this dialog open.
+    "${DWS_EXECUTABLE}" auth login --format json >/dev/null 2>&1
 }
 
-login_with_recommended_permissions() {
-    # JSON mode returns PAT_BATCH_AUTH_PENDING to the host immediately. Table
-    # mode keeps the DWS-owned browser flow running until the user approves,
-    # rejects, or the authorization expires.
-    "${DWS_EXECUTABLE}" auth login --recommend --format table >/dev/null 2>&1
+wait_for_authentication() {
+    ATTEMPT=1
+    while [ "${ATTEMPT}" -le 10 ]; do
+        if is_authenticated; then
+            return 0
+        fi
+        if [ "${ATTEMPT}" -lt 10 ]; then
+            sleep 0.5
+        fi
+        ATTEMPT=$((ATTEMPT + 1))
+    done
+    return 1
 }
 
 case "${ACTION}" in
@@ -41,18 +66,22 @@ case "${ACTION}" in
         ;;
     login)
         if is_authenticated; then
-            if grant_recommended_permissions; then
-                json_status ok "DingTalk authorization is ready."
-            else
-                json_status error "DingTalk recommended permission authorization did not complete."
-            fi
+            json_status ok "DingTalk authorization is ready."
             exit 0
         fi
-        if login_with_recommended_permissions &&
-            is_authenticated; then
-            json_status ok "DingTalk authorization is ready."
+        if login; then
+            LOGIN_EXIT_CODE=0
         else
-            json_status error "DingTalk browser authorization did not complete."
+            LOGIN_EXIT_CODE=$?
+        fi
+        # Persisted authentication is authoritative because native process
+        # errors can race with an otherwise successful browser callback.
+        if wait_for_authentication; then
+            json_status ok "DingTalk authorization is ready."
+        elif [ "${LOGIN_EXIT_CODE}" -ne 0 ]; then
+            json_status error "DingTalk OAuth command failed (exit code ${LOGIN_EXIT_CODE}); ${AUTH_STATUS_DETAIL}"
+        else
+            json_status error "DingTalk OAuth callback completed, but ${AUTH_STATUS_DETAIL}"
         fi
         ;;
     logout)

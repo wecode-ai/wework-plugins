@@ -2,7 +2,7 @@
 
 set -eu
 
-DWS_RELEASE_VERSION="1.0.46"
+DWS_RELEASE_VERSION="1.0.58"
 
 find_working_dws() {
     if [ -n "${DWS_BINARY_PATH:-}" ] &&
@@ -91,20 +91,20 @@ resolve_release() {
     DWS_PLATFORM="${DWS_RELEASE_OS}-${DWS_RELEASE_ARCH}"
     case "${DWS_PLATFORM}" in
         darwin-x64)
-            DWS_ARCHIVE_URL="https://p11-market.byteimg.com/tos-cn-i-17oceyzymr/binaries/dws-cli/1.0.46/darwin-x64.zip"
-            DWS_EXPECTED_SHA="064d5b2cda4a49840a0f4851c1fa84acb92b92d9657c08af0c71d419138604bc"
+            DWS_ARCHIVE_URL="https://github.com/DingTalk-Real-AI/dingtalk-workspace-cli/releases/download/v1.0.58/dws-darwin-amd64.tar.gz"
+            DWS_EXPECTED_SHA="4c12e35e5bf7e0905812cd42dc94a5345068a2c16e306bb50b13c5c78b5cb95d"
             ;;
         darwin-arm64)
-            DWS_ARCHIVE_URL="https://p11-market.byteimg.com/tos-cn-i-17oceyzymr/binaries/dws-cli/1.0.46/darwin-arm64-1783747172810957192.zip"
-            DWS_EXPECTED_SHA="ef832cb98ead9790a47a3b149bc09c30c0695ad6641109fc3534dd879bf6b2c2"
+            DWS_ARCHIVE_URL="https://github.com/DingTalk-Real-AI/dingtalk-workspace-cli/releases/download/v1.0.58/dws-darwin-arm64.tar.gz"
+            DWS_EXPECTED_SHA="7d98599f90cae9d42b51ff2863efc87dbfb4a3176ff3c84fc2216110c0157a70"
             ;;
         linux-x64)
-            DWS_ARCHIVE_URL="https://p11-market.byteimg.com/tos-cn-i-17oceyzymr/binaries/dws-cli/1.0.46/linux-x64-1783747396763108997.zip"
-            DWS_EXPECTED_SHA="cd976c9b8cbb0bdac871601d958862566648ee325469655fe9dfbe35149af06b"
+            DWS_ARCHIVE_URL="https://github.com/DingTalk-Real-AI/dingtalk-workspace-cli/releases/download/v1.0.58/dws-linux-amd64.tar.gz"
+            DWS_EXPECTED_SHA="3ccadcc6f070a39d2b2ba20429a4fcdc2f21639bf79f34361dc7d16f501bfda6"
             ;;
         linux-arm64)
-            DWS_ARCHIVE_URL="https://p11-market.byteimg.com/tos-cn-i-17oceyzymr/binaries/dws-cli/1.0.46/linux-arm64-1783747080290971851.zip"
-            DWS_EXPECTED_SHA="24e2ddc6d584713ce0da8c49cc99593f86af84301a4ca1de527c775e8079aec4"
+            DWS_ARCHIVE_URL="https://github.com/DingTalk-Real-AI/dingtalk-workspace-cli/releases/download/v1.0.58/dws-linux-arm64.tar.gz"
+            DWS_EXPECTED_SHA="5ef6bde24bc3db6a11a0f1d0b3343a048956b2cbcf6cd3409a037fb6ba425489"
             ;;
         *)
             echo "Unsupported DWS platform: ${DWS_PLATFORM}" >&2
@@ -132,14 +132,14 @@ if [ -x "${DWS_INSTALL_TARGET}" ] &&
     exit 0
 fi
 
-if ! command -v unzip >/dev/null 2>&1; then
-    echo "The unzip utility is required to install DWS." >&2
+if ! command -v tar >/dev/null 2>&1; then
+    echo "The tar utility is required to install DWS." >&2
     exit 11
 fi
 
 DWS_TEMP_DIRECTORY="$(mktemp -d "${TMPDIR:-/tmp}/wegent-dws.XXXXXX")"
 trap 'rm -rf -- "${DWS_TEMP_DIRECTORY}"' EXIT HUP INT TERM
-DWS_ARCHIVE_PATH="${DWS_TEMP_DIRECTORY}/dws.zip"
+DWS_ARCHIVE_PATH="${DWS_TEMP_DIRECTORY}/dws.tar.gz"
 DWS_EXPANDED_DIRECTORY="${DWS_TEMP_DIRECTORY}/expanded"
 mkdir -p "${DWS_EXPANDED_DIRECTORY}"
 
@@ -151,7 +151,7 @@ if [ "${DWS_ACTUAL_SHA}" != "${DWS_EXPECTED_SHA}" ]; then
     exit 12
 fi
 
-unzip -q "${DWS_ARCHIVE_PATH}" -d "${DWS_EXPANDED_DIRECTORY}"
+tar -xzf "${DWS_ARCHIVE_PATH}" -C "${DWS_EXPANDED_DIRECTORY}"
 DWS_EXTRACTED_BINARY="$(find "${DWS_EXPANDED_DIRECTORY}" -type f -name dws -print | head -n 1)"
 if [ -z "${DWS_EXTRACTED_BINARY}" ]; then
     echo "The verified DWS archive did not contain a dws binary." >&2

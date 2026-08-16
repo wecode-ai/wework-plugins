@@ -11,6 +11,20 @@ auth_status_is_authenticated() {
         grep -E '"authenticated"[[:space:]]*:[[:space:]]*true' >/dev/null 2>&1
 }
 
+wait_for_authenticated_status() {
+    DWS_AUTH_ATTEMPT=1
+    while [ "${DWS_AUTH_ATTEMPT}" -le 10 ]; do
+        if auth_status_is_authenticated; then
+            return 0
+        fi
+        if [ "${DWS_AUTH_ATTEMPT}" -lt 10 ]; then
+            sleep 0.5
+        fi
+        DWS_AUTH_ATTEMPT=$((DWS_AUTH_ATTEMPT + 1))
+    done
+    return 1
+}
+
 auth_probe_result() {
     DWS_AUTH_PROBE_OUTPUT="$("${DWS_EXECUTABLE}" contact user get-self --format json 2>&1)" &&
         return 0
@@ -39,12 +53,24 @@ fi
 
 if [ "${DWS_LOGIN_REQUIRED}" = true ]; then
     echo "DWS is not authenticated. Opening DingTalk browser authorization..." >&2
-    # Keep the DWS-owned PAT flow alive until the browser authorization ends.
-    # JSON mode would return PAT_BATCH_AUTH_PENDING to this wrapper immediately.
-    "${DWS_EXECUTABLE}" auth login --recommend --format table
+    # Complete local OAuth login without blocking on operation-specific PAT
+    # permissions, which DWS handles when a command requires them.
+    if "${DWS_EXECUTABLE}" auth login --format json; then
+        DWS_LOGIN_EXIT_CODE=0
+    else
+        DWS_LOGIN_EXIT_CODE=$?
+    fi
+    if ! wait_for_authenticated_status; then
+        if [ "${DWS_LOGIN_EXIT_CODE}" -ne 0 ]; then
+            echo "DWS browser authorization failed (exit code ${DWS_LOGIN_EXIT_CODE})." >&2
+            exit 20
+        fi
+        echo "DWS authorization did not produce a usable local login." >&2
+        exit 20
+    fi
 fi
 
-if ! auth_status_is_authenticated; then
+if ! wait_for_authenticated_status; then
     echo "DWS authorization did not produce a usable local login." >&2
     exit 20
 fi
