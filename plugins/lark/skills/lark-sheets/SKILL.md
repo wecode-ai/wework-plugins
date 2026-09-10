@@ -3,11 +3,11 @@ name: lark-sheets
 description: "飞书电子表格：创建和操作电子表格。支持创建表格、管理工作表与行列结构（增删/合并/调整尺寸/隐藏/冻结）、读写单元格（值/公式/样式/批注/单元格图片）、查找替换、多操作原子批量更新，以及图表、透视表、条件格式、筛选器、迷你图、浮动图片等对象的创建与维护。当用户需要创建电子表格、管理工作表、批量读写或编辑数据、统计汇总与可视化、表格美化、公式计算（含 Excel 公式迁移）、金融/财务建模（DCF、三张表、预算、Sensitivity 等）等任务时使用。若用户是想按名称或关键词搜索云空间（云盘/云存储）里的表格文件，请改用 lark-drive 的 drive +search 先定位资源。当用户给出 doubao.com 的 /sheets/ URL/token 时，也应直接使用本 skill，不要因为域名不是飞书而回退到 WebFetch；路由依据是 URL 路径模式和 token，而不是域名。"
 ---
 
-## Wegent 本地运行
+## Wegent 本地与云端运行
 
 - 当前 `SKILL.md` 所在目录的 `../..` 是插件根目录。首次调用前，macOS/Linux 运行 `sh "<插件根目录>/scripts/ensure-lark-ready.sh"`；Windows 运行 `powershell -NoProfile -ExecutionPolicy Bypass -File "<插件根目录>\scripts\ensure-lark-ready.ps1"`。
 - 下文的 `lark-cli ...` 是逻辑命令。实际执行时，macOS/Linux 使用 `sh "<插件根目录>/scripts/run-lark-cli.sh" ...`；Windows 使用 `powershell -NoProfile -ExecutionPolicy Bypass -File "<插件根目录>\scripts\run-lark-cli.ps1" ...`。
-- 配置和用户 OAuth 均由官方 CLI 在本机管理。不要要求用户在对话中粘贴 App Secret 或 Access Token，也不要读取、记录或上传 `~/.lark-cli` 或系统钥匙串中的认证信息。配置、扫码、企业审批或增量授权需要用户操作时，展示 CLI 原样输出的 URL/二维码并暂停等待。
+- 应用配置和首次用户 OAuth 在本机原连接入口完成；Wegent 在后台托管用户 OAuth（`lark`）及应用凭据（`lark-app`）。云端准备脚本只检查托管认证，不安装 CLI 或发起登录。实际命令必须经过上述包装器，不能直接调用裸 CLI、读取认证文件或索取 Token。用户调用默认 `--as user`，应用调用显式 `--as bot`，两种云端授权独立管理。托管请求正文通过参数或相对路径文件传入，不使用 stdin。托管状态失效或需要增量授权时，在本机原连接入口重新连接；不要在云端执行 auth/config/profile 命令。
 
 # sheets
 

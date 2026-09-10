@@ -1,7 +1,7 @@
 {
   "name": "lark",
-  "version": "0.1.4",
-  "description": "通过本机已完成认证的官方 CLI，使用飞书/Lark 消息、文档、多维表格、电子表格、日历、任务、会议与企业协作能力。",
+  "version": "0.2.0",
+  "description": "通过飞书官方 CLI 使用协作能力，本机登录后由 Wegent 托管用户 OAuth 与应用机器人认证。",
   "author": {
     "name": "Wegent"
   },
@@ -23,8 +23,8 @@
   "skills": "./skills/",
   "interface": {
     "displayName": "飞书",
-    "shortDescription": "通过本机官方 CLI 使用飞书完整协作能力",
-    "longDescription": "自动准备跨平台飞书官方 CLI，通过浏览器扫码在本机创建应用并完成用户 OAuth，支持消息、通讯录、文档、云盘、知识库、多维表格、电子表格、幻灯片、日历、任务、审批、邮箱、会议、妙记、OKR、考勤和实时事件。App Secret 与用户 Token 不上传 Wegent Backend。",
+    "shortDescription": "本地与云端复用飞书用户及应用认证",
+    "longDescription": "沿用飞书应用创建和浏览器用户授权，用户 OAuth 独占交接给 Wegent 统一刷新，应用机器人凭据单独托管。业务调用使用原生内存认证提供方，保留官方 CLI 的消息、文档、日历、表格等命令与确认规则。",
     "developerName": "Wegent",
     "category": "协作",
     "capabilities": [
@@ -43,5 +43,62 @@
       "帮我整理飞书云空间和知识库中的资料。",
       "查看我的飞书日程和未完成任务并生成摘要。"
     ]
-  }
+  },
+  "connectors": [
+    {
+      "slug": "lark",
+      "authPolicy": "on_install",
+      "localAuth": {
+        "kind": "browser_oauth",
+        "health": [
+          "scripts/local-auth.sh",
+          "health"
+        ],
+        "start": [
+          "scripts/local-auth.sh",
+          "login"
+        ],
+        "logout": [
+          "scripts/local-auth.sh",
+          "logout"
+        ],
+        "timeoutSeconds": 600,
+        "logoutOnUninstall": false
+      },
+      "accountAuth": {
+        "protocolVersion": 1,
+        "credentialType": "oauth2",
+        "adapter": "scripts/account-auth.py",
+        "oauth2": [
+          "refresh",
+          "revoke"
+        ],
+        "exportMode": "exclusive",
+        "localEnvironment": {
+          "LARKSUITE_CLI_CONFIG_DIR": {
+            "type": "directory"
+          },
+          "XDG_DATA_HOME": {
+            "type": "directory"
+          }
+        }
+      }
+    },
+    {
+      "slug": "lark-app",
+      "accountAuth": {
+        "protocolVersion": 1,
+        "credentialType": "password",
+        "adapter": "scripts/account-auth-bot.py",
+        "localEnvironment": {
+          "LARKSUITE_CLI_CONFIG_DIR": {
+            "type": "directory"
+          },
+          "XDG_DATA_HOME": {
+            "type": "directory"
+          }
+        }
+      }
+    }
+  ]
 }

@@ -1,0 +1,68 @@
+name: Lark account authentication package
+
+on:
+  pull_request:
+    paths:
+      - 'plugins/lark/**'
+      - '.github/workflows/lark-package.yml'
+  push:
+    branches: [main]
+    paths:
+      - 'plugins/lark/**'
+      - '.github/workflows/lark-package.yml'
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  package:
+    strategy:
+      fail-fast: false
+      matrix:
+        os: [ubuntu-latest, macos-latest, windows-latest]
+    runs-on: ${{ matrix.os }}
+    timeout-minutes: 40
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          persist-credentials: false
+      - uses: astral-sh/setup-uv@v6
+        with:
+          python-version: '3.12'
+      - uses: actions/setup-go@v6
+        with:
+          go-version: '1.25.9'
+          cache: false
+      - name: Test routing and lifecycle
+        run: uv run --no-project python -m unittest discover -s plugins/lark/scripts/tests -v
+      - name: Build all targets and verify the packaged native entry
+        run: uv run --no-project python plugins/lark/.wework-build/lark-auth/package.py --plugin plugins/lark --output .ci-artifacts/lark-account-auth.zip
+      - name: Retain the tested candidate
+        if: runner.os == 'Linux'
+        uses: actions/upload-artifact@v4
+        with:
+          name: lark-candidate-${{ github.sha }}
+          path: |
+            .ci-artifacts/lark-account-auth.zip
+            .ci-artifacts/lark-account-auth.zip.sha256
+          if-no-files-found: error
+          retention-days: 7
+
+  release-artifact:
+    needs: package
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/download-artifact@v4
+        with:
+          name: lark-candidate-${{ github.sha }}
+          path: release
+      - name: Verify selected candidate
+        working-directory: release
+        run: sha256sum --check lark-account-auth.zip.sha256
+      - uses: actions/upload-artifact@v4
+        with:
+          name: lark-account-auth-${{ github.sha }}
+          path: release/
+          if-no-files-found: error
+          retention-days: 14

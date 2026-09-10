@@ -3,11 +3,11 @@ name: lark-drive
 description: "飞书云空间（云盘/云存储）：管理 Drive 文件和文件夹，包含上传/下载、创建文件夹、复制/移动/删除、查看元数据、评论/权限/订阅、标题、版本和本地文件导入。用户需要整理云盘目录、处理云空间资源 URL/token、判断链接类型/真实 token/标题，或导入 Word/Markdown/Excel/CSV/PPTX/.base 为 docx/sheet/bitable/slides 时使用；doubao.com 云空间 URL/token 也按资源路径和 token 路由，不回退 WebFetch。不负责：文档内容编辑（走 lark-doc）、表格/Base 表内数据操作（走 lark-sheets/lark-base）、知识空间节点/成员管理（走 lark-wiki）、原生 Markdown 文件读写/patch/diff（走 lark-markdown）。"
 ---
 
-## Wegent 本地运行
+## Wegent 本地与云端运行
 
 - 当前 `SKILL.md` 所在目录的 `../..` 是插件根目录。首次调用前，macOS/Linux 运行 `sh "<插件根目录>/scripts/ensure-lark-ready.sh"`；Windows 运行 `powershell -NoProfile -ExecutionPolicy Bypass -File "<插件根目录>\scripts\ensure-lark-ready.ps1"`。
 - 下文的 `lark-cli ...` 是逻辑命令。实际执行时，macOS/Linux 使用 `sh "<插件根目录>/scripts/run-lark-cli.sh" ...`；Windows 使用 `powershell -NoProfile -ExecutionPolicy Bypass -File "<插件根目录>\scripts\run-lark-cli.ps1" ...`。
-- 配置和用户 OAuth 均由官方 CLI 在本机管理。不要要求用户在对话中粘贴 App Secret 或 Access Token，也不要读取、记录或上传 `~/.lark-cli` 或系统钥匙串中的认证信息。配置、扫码、企业审批或增量授权需要用户操作时，展示 CLI 原样输出的 URL/二维码并暂停等待。
+- 应用配置和首次用户 OAuth 在本机原连接入口完成；Wegent 在后台托管用户 OAuth（`lark`）及应用凭据（`lark-app`）。云端准备脚本只检查托管认证，不安装 CLI 或发起登录。实际命令必须经过上述包装器，不能直接调用裸 CLI、读取认证文件或索取 Token。用户调用默认 `--as user`，应用调用显式 `--as bot`，两种云端授权独立管理。托管请求正文通过参数或相对路径文件传入，不使用 stdin。托管状态失效或需要增量授权时，在本机原连接入口重新连接；不要在云端执行 auth/config/profile 命令。
 
 # drive (v1)
 

@@ -3,11 +3,11 @@ name: lark-shared
 description: "用于 lark-cli 的配置与授权任务：auth login/status/logout、用户与机器人身份、业务域权限（--domain，含 all/docs/drive）、缺失 scope、撤销授权，或处理 _notice JSON。"
 ---
 
-## Wegent 本地运行
+## Wegent 本地与云端运行
 
 - 当前 `SKILL.md` 所在目录的 `../..` 是插件根目录。首次调用前，macOS/Linux 运行 `sh "<插件根目录>/scripts/ensure-lark-ready.sh"`；Windows 运行 `powershell -NoProfile -ExecutionPolicy Bypass -File "<插件根目录>\scripts\ensure-lark-ready.ps1"`。
 - 下文的 `lark-cli ...` 是逻辑命令。实际执行时，macOS/Linux 使用 `sh "<插件根目录>/scripts/run-lark-cli.sh" ...`；Windows 使用 `powershell -NoProfile -ExecutionPolicy Bypass -File "<插件根目录>\scripts\run-lark-cli.ps1" ...`。
-- 配置和用户 OAuth 均由官方 CLI 在本机管理。不要要求用户在对话中粘贴 App Secret 或 Access Token，也不要读取、记录或上传 `~/.lark-cli` 或系统钥匙串中的认证信息。配置、扫码、企业审批或增量授权需要用户操作时，展示 CLI 原样输出的 URL/二维码并暂停等待。
+- 应用配置和首次用户 OAuth 在本机原连接入口完成；Wegent 在后台托管用户 OAuth（`lark`）及应用凭据（`lark-app`）。云端准备脚本只检查托管认证，不安装 CLI 或发起登录。实际命令必须经过上述包装器，不能直接调用裸 CLI、读取认证文件或索取 Token。用户调用默认 `--as user`，应用调用显式 `--as bot`，两种云端授权独立管理。托管请求正文通过参数或相对路径文件传入，不使用 stdin。托管状态失效或需要增量授权时，在本机原连接入口重新连接；不要在云端执行 auth/config/profile 命令。
 
 # lark-cli 共享规则
 
@@ -22,44 +22,17 @@ description: "用于 lark-cli 的配置与授权任务：auth login/status/logou
 - 路径和含空格参数必须保持为独立参数并完整引用，不得拼接成一段命令字符串后执行。
 - 参考文档中的 `python3` 在 macOS/Linux 原样使用；Windows PowerShell 必须替换为 `py -3`，或使用 workspace dependency loader 返回的绝对 `python.exe`。
 
-## 配置初始化
+## 配置与认证
 
-首次使用需运行 `lark-cli config init` 完成应用配置。
+在 Wegent 原连接入口完成应用配置和用户浏览器 OAuth。浏览器链接由本机原生脚本打开，认证完成后自动交接；不要从模型进程读取、显示或上传密钥与 Token。
 
-当你帮用户初始化配置时，使用background方式使用下面的命令发起配置应用流程，启动后读取输出，从中提取授权链接并发给用户。
-
-**URL 转发规则**：当命令输出 `verification_url`、`verification_uri_complete`、`console_url` 等 URL 字段时：**必须生成二维码**：你必须调用 `lark-cli auth qrcode` 将 URL 转为二维码并展示给用户，这是必须步骤，不要跳过。优先生成 PNG 二维码（--output）；仅当用户明确要求时才使用 ASCII（--ascii）。**URL 输出规则**：将 URL 视为不可修改的 opaque string，不要做任何修改（包括 URL 编码/解码、添加空格或标点、重新拼接 query），二维码和链接请一起展示给用户。
-
-```bash
-# 发起配置（该命令会阻塞直到用户打开链接并完成操作或过期）
-lark-cli config init --new
-```
-
-## 认证
-
-### 认证任务速查
-
-认证、scope、业务域、登录态、退出登录态、撤销授权问题都走本技能。
-
-| 用户意图 | 首选命令 / 回答 |
-|---|---|
-| 获取全部权限 | `lark-cli auth login --domain all --no-wait --json` |
-| 按业务域授权 | `lark-cli auth login --domain docs --domain drive --no-wait --json`；`--domain` 可重复，也可用逗号分隔 |
-| 指定单个 scope 授权 | `lark-cli auth login --scope "<scope>" --no-wait --json` |
-| 检查当前登录态、是谁登录、token 是否有效 | `lark-cli auth status --json --verify`；回答时引用 `identity`、`verified`、`identities.user.status`、`identities.user.userName`、`identities.user.openId`（用户 open id）、`identities.user.tokenStatus`、`identities.user.scope` |
-| 快速查看当前身份状态 | `lark-cli whoami`；实际生效的那一个身份 |
-| 退出当前机器的用户登录态 | `lark-cli auth logout --json`；`loggedOut:true` 表示注销成功 |
-| bot 缺少权限 | 不要执行 `auth login`；引导用户在开发者后台开通 bot scope，优先复用错误里的 `console_url` |
-| 取消用户对应用的全部服务端授权 | `auth logout` 只清本机登录态；服务端授权需用户在飞书授权管理页取消 |
-| 只取消一个 scope | CLI 不支持单独撤销一个已授予 scope；可重新走最小 scope 授权，或让用户在授权管理页处理 |
-
-机器读取 JSON 时需要关闭 `_notice` 干扰。插件包装器已经在所有平台设置
-`LARKSUITE_CLI_NO_UPDATE_NOTIFIER=1` 和 `LARKSUITE_CLI_NO_SKILLS_NOTIFIER=1`，
-直接执行逻辑命令即可：
-
-```bash
-lark-cli auth status --json --verify
-```
+- `auth status` 在托管模式下返回 `status` 和 `accountId`，不沿用原 CLI 的 `identities` JSON 结构。
+- 用户身份为 `lark` OAuth 连接，应用身份为 `lark-app` 密码类连接。使用 `--as bot` 时必须获得该应用连接的云端授权，不能借用户 OAuth 提权。
+- 本机托管状态下执行 `auth login --scope <scope>` 或 `auth login --domain <domain>` 只记录非敏感的授权范围，并返回需要重新连接。随后在原连接入口重新连接，完成指定范围的浏览器授权。云端不执行此操作，需回到源设备处理。
+- 应用 scope 在开发者后台开通；不要为 bot 执行用户 OAuth。
+- 用户退出在原连接入口执行，由宿主断开云端，再清理本机用户 Token。撤销由宿主私有回调处理，不使用裸 CLI 的 logout。
+- `--profile`、`--workspace`、认证/代理覆盖、调试插件等不允许进入托管业务执行；本次同步原默认配置所选的应用与用户，切换账号需在本机完成并重新连接。
+- 原 CLI 的写操作确认规则保持有效。不得自动追加 `--yes`；只有用户明确授权相应写操作时，按 CLI 的要求传入确认。
 
 ### 身份类型
 
@@ -102,45 +75,9 @@ lark-cli auth login --scope "<missing_scope>"   # 按具体 scope 授权（推�
 
 **规则**：auth login 必须指定范围（`--domain` 或 `--scope`）。多次 login 的 scope 会累积（增量授权）。
 
-#### Agent 代理发起认证（推荐）
+#### 托管状态下增量授权
 
-当你作为 AI agent 需要帮用户完成认证时，优先使用 split-flow，避免在同一轮对话中阻塞等待用户授权：
-
-```bash
-# 发起授权（立即返回 device_code 和 verification_url）
-lark-cli auth login --scope "calendar:calendar:readonly" --no-wait --json
-```
-
-拿到 `verification_url` 后，将它原样作为本轮最终消息发给用户，并结束本轮/交还控制权。不要在同一轮中展示 URL 后立刻执行 `--device-code` 阻塞轮询；在不透传中间输出的 agent harness 里，这会导致用户永远看不到 URL。
-
-用户回复已完成授权后，再在后续步骤执行：
-
-```bash
-lark-cli auth login --device-code <device_code>
-```
-
-**Split-Flow 完整步骤**：
-
-**第一步：发起授权（当前轮）**
-
-1. 执行 `lark-cli auth login --scope "xxx" --no-wait --json`（必须加 `--no-wait --json`）
-2. 从 JSON 输出中提取 `verification_url` 和 `device_code`
-3. 生成二维码：`lark-cli auth qrcode <verification_url> --output "xxx"`
-4. 将 URL 和二维码展示给用户（先 URL，后二维码）
-5. **结束本轮对话前，必须明确告知用户**："请完成授权后，回来告诉我已授权完成，我会帮你完成后续步骤"
-
-**第二步：完成授权（后续轮）**
-
-1. 等待用户回复"已完成授权"
-2. **由你（AI agent）亲自执行**：`lark-cli auth login --device-code <device_code>`
-3. 此命令会轮询授权状态并完成登录
-4. 如果返回授权成功，流程结束
-
-**关键规则**：
-
-- **你必须亲自执行 `--device-code` 命令**，不要指示用户自行执行
-- **不要在同一轮中展示 URL 后立刻执行 `--device-code`**，这会导致用户看不到 URL
-- **禁止缓存 `verification_url` 或 `device_code`**：每次需要授权时，必须重新执行 `lark-cli auth login --no-wait --json` 生成新的链接。不要将授权链接和 device code 存入上下文供后续复用
+本机按上面的 `auth login --scope/--domain` 记录范围后，通过 Wegent 原连接入口重新连接。云端只报告缺失 scope 与开发者后台链接，不发起第二份授权、不请求 device code 或 Token。
 
 ## 更新检查
 
@@ -186,7 +123,7 @@ lark-cli update
 - **禁止输出密钥**（appSecret、accessToken）到终端明文。
 - **写入/删除操作前必须确认用户意图**。
 - 用 `--dry-run` 预览危险请求。
-- **文件路径只接受相对路径**：`--file`、`--output`、`--output-dir`、`@file` 等路径参数只接受 cwd 下的相对路径，传绝对路径会报 `unsafe file path`。数据输入（`@file`、大 JSON）优先用 stdin 传入，避免路径和转义问题。
+- **文件路径只接受相对路径**：`--file`、`--output`、`--output-dir`、`@file` 等路径参数只接受 cwd 下的相对路径，传绝对路径会报 `unsafe file path`。数据输入（大 JSON）先写入工作目录的相对文件，再用 `@file` 传入。托管调用不支持 stdin 正文。
 
 ## 高风险操作的审批协议（exit 10）
 

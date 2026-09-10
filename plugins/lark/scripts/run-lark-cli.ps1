@@ -1,26 +1,9 @@
-param(
-    [Parameter(ValueFromRemainingArguments = $true)]
-    [string[]]$LarkArguments
-)
-
+param([Parameter(ValueFromRemainingArguments = $true)][string[]]$Arguments)
 $ErrorActionPreference = 'Stop'
 Set-StrictMode -Version Latest
-
-$scriptDirectory = Split-Path -Parent $MyInvocation.MyCommand.Path
-. (Join-Path $scriptDirectory 'invoke-native-command.ps1')
-$lark = & (Join-Path $scriptDirectory 'install-lark-cli.ps1') |
-    Select-Object -Last 1
-foreach ($name in @(
-    'LARKSUITE_CLI_USER_ACCESS_TOKEN',
-    'LARKSUITE_CLI_BRAND',
-    'LARKSUITE_CLI_APP_ID'
-)) {
-    Remove-Item "Env:$name" -ErrorAction SilentlyContinue
-}
-$env:LARKSUITE_CLI_NO_UPDATE_NOTIFIER = '1'
-$env:LARKSUITE_CLI_NO_SKILLS_NOTIFIER = '1'
-$larkExitCode = -1
-Invoke-NativeCommand `
-    -Command { & $lark @LarkArguments } `
-    -ExitCode ([ref]$larkExitCode)
-exit $larkExitCode
+. (Join-Path $PSScriptRoot 'invoke-native-command.ps1')
+$result = -1
+Invoke-NativeCommand -Command {
+    & (Join-Path $PSScriptRoot 'run-python.ps1') (Join-Path $PSScriptRoot 'lark_cli.py') @Arguments
+} -ExitCode ([ref]$result)
+exit $result

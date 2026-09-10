@@ -1,0 +1,7 @@
+{
+  "schemaVersion": 1,
+  "entrypoint": ".wework-build/lark-auth/package.py",
+  "outputs": [
+    "scripts/native"
+  ]
+}
