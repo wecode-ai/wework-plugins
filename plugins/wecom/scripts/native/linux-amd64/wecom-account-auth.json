@@ -1,0 +1,15 @@
+{
+  "nativeProtocolVersion": 1,
+  "target": "linux/amd64",
+  "upstreamVersion": "0.1.9",
+  "upstreamRevision": "72e14f7695f34d28f1ff23ea504ddd2210a87c13",
+  "upstreamSourceSha256": "b8af1eeffd346646f1a1a20dbe11cb4ab50d12c26664ddfd433661402fe8840e",
+  "rustVersion": "1.94.1",
+  "sources": {
+    "build.py": "277c939743178afa829e3310a53f1bc53cf2d9af568e44f4859874e8d7fad3fa",
+    "wegent.rs": "4a73817badbe405089c097bc263f6ba4e5477614423307fedb5e063c8e2188d5"
+  },
+  "binaryBytes": 8031544,
+  "binarySha256": "31ad88fb6b8db7b62955abc65f60a02615de390a47d6b78bd0009cb1a76d138f",
+  "compressedSha256": "d261a88facf8faacd6f1d1f4dff6a5343f3ef5b6c5ed91a59b709c76ef9714d6"
+}

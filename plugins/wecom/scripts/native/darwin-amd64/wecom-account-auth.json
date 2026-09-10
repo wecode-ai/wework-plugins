@@ -1,0 +1,15 @@
+{
+  "nativeProtocolVersion": 1,
+  "target": "darwin/amd64",
+  "upstreamVersion": "0.1.9",
+  "upstreamRevision": "72e14f7695f34d28f1ff23ea504ddd2210a87c13",
+  "upstreamSourceSha256": "b8af1eeffd346646f1a1a20dbe11cb4ab50d12c26664ddfd433661402fe8840e",
+  "rustVersion": "1.94.1",
+  "sources": {
+    "build.py": "277c939743178afa829e3310a53f1bc53cf2d9af568e44f4859874e8d7fad3fa",
+    "wegent.rs": "4a73817badbe405089c097bc263f6ba4e5477614423307fedb5e063c8e2188d5"
+  },
+  "binaryBytes": 7454816,
+  "binarySha256": "f3e06325335262714c56db8f16d16f12fd7ba3f61a89c170ff564a86d8c7d9b4",
+  "compressedSha256": "272bab6909d0d92cba2ce9e8b4cd26f171856994d057f077ff2b99a8ddaa83b5"
+}

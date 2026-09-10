@@ -1,0 +1,80 @@
+name: WeCom account authentication package
+on:
+  pull_request:
+    paths: ['plugins/wecom/**', '.github/workflows/wecom-package.yml']
+  push:
+    branches: [main, feature/wecom-account-auth]
+    paths: ['plugins/wecom/**', '.github/workflows/wecom-package.yml']
+  workflow_dispatch:
+permissions:
+  contents: read
+jobs:
+  native:
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - os: ubuntu-22.04
+            platform: linux-amd64
+          - os: ubuntu-22.04-arm
+            platform: linux-arm64
+          - os: macos-15
+            platform: darwin-arm64
+          - os: macos-15-intel
+            platform: darwin-amd64
+          - os: windows-latest
+            platform: windows-amd64
+    runs-on: ${{ matrix.os }}
+    timeout-minutes: 35
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          persist-credentials: false
+      - uses: astral-sh/setup-uv@v6
+        with:
+          python-version: '3.12'
+      - name: Verify committed assets before rebuilding
+        run: uv run --no-project python plugins/wecom/.wework-build/wecom-auth/package.py --plugin plugins/wecom --output .ci-artifacts/wecom-committed.zip
+      - name: Select pinned compiler
+        run: |
+          rustup toolchain install 1.94.1 --profile minimal
+          rustup default 1.94.1
+      - name: Test public routing
+        run: uv run --no-project python -m unittest discover -s plugins/wecom/scripts/tests -v
+      - name: Build native candidate and test private source boundary
+        run: uv run --no-project python plugins/wecom/.wework-build/wecom-auth/build.py --output .ci-artifacts/wecom-native
+      - name: Stage host candidate
+        run: uv run --no-project python -c "import shutil; shutil.copytree('.ci-artifacts/wecom-native', 'plugins/wecom/scripts/native', dirs_exist_ok=True)"
+      - name: Verify native private entry and exact child status
+        run: uv run --no-project python plugins/wecom/.wework-build/wecom-auth/verify.py --plugin plugins/wecom --host-only
+      - uses: actions/upload-artifact@v4
+        with:
+          name: wecom-native-${{ matrix.platform }}-${{ github.sha }}
+          path: .ci-artifacts/wecom-native/
+          if-no-files-found: error
+          retention-days: 14
+  package:
+    needs: native
+    runs-on: ubuntu-22.04
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          persist-credentials: false
+      - uses: astral-sh/setup-uv@v6
+        with:
+          python-version: '3.12'
+      - uses: actions/download-artifact@v4
+        with:
+          pattern: wecom-native-*-${{ github.sha }}
+          path: plugins/wecom/scripts/native
+          merge-multiple: true
+      - name: Assemble verified five-platform package
+        run: uv run --no-project python plugins/wecom/.wework-build/wecom-auth/package.py --plugin plugins/wecom --output .ci-artifacts/wecom-account-auth.zip
+      - uses: actions/upload-artifact@v4
+        with:
+          name: wecom-account-auth-${{ github.sha }}
+          path: |
+            .ci-artifacts/wecom-account-auth.zip
+            .ci-artifacts/wecom-account-auth.zip.sha256
+          if-no-files-found: error
+          retention-days: 14

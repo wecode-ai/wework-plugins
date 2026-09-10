@@ -1,0 +1,4 @@
+*.py text eol=lf
+*.rs text eol=lf
+*.json text eol=lf
+*.xz binary

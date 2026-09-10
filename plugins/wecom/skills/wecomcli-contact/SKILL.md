@@ -9,11 +9,11 @@ description: 通讯录成员查询技能，获取当前用户可见范围内的�
 
 获取当前用户可见范围内的通讯录成员，并在本地按姓名/别名进行筛选匹配。
 
-## Wegent 本地运行
+## Wegent 本地与云端运行
 
 - 当前 `SKILL.md` 所在目录的 `../..` 是插件根目录。首次调用前，macOS/Linux 运行 `sh "<插件根目录>/scripts/ensure-wecom-ready.sh"`；Windows 运行 `powershell -NoProfile -ExecutionPolicy Bypass -File "<插件根目录>\scripts\ensure-wecom-ready.ps1"`。
 - 下文的 `wecom-cli ...` 是逻辑命令。实际执行时，macOS/Linux 使用 `sh "<插件根目录>/scripts/run-wecom-cli.sh" ...`；Windows 使用 `powershell -NoProfile -ExecutionPolicy Bypass -File "<插件根目录>\scripts\run-wecom-cli.ps1" ...`。
-- 未授权时初始化脚本会打开企业微信官方网页并显示二维码，只在需要用户扫码、企业权限或内网/VPN 时暂停。不要要求用户在对话中粘贴 Bot ID、Secret 或 Access Token，也不要读取、记录或上传 `~/.config/wecom` 中的本地认证配置。
+- 本地未授权时通过 Wegent 原生连接在官方浏览器页面扫码。Bot ID 和 Secret 由私有适配器同步，云端使用托管连接，无需再次扫码；云端禁止运行安装、`init` 或读取本地认证配置。认证失效时返回来源设备重新连接。不要要求用户在对话中粘贴凭据。
 
 ## 操作
 

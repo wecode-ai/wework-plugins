@@ -1,20 +1,9 @@
-param(
-    [Parameter(ValueFromRemainingArguments = $true)]
-    [string[]]$WeComArguments
-)
-
+param([Parameter(ValueFromRemainingArguments = $true)][string[]]$Arguments)
 $ErrorActionPreference = 'Stop'
 Set-StrictMode -Version Latest
-
-$scriptDirectory = Split-Path -Parent $MyInvocation.MyCommand.Path
-. (Join-Path $scriptDirectory 'invoke-native-command.ps1')
-$wecom = & (Join-Path $scriptDirectory 'install-wecom-cli.ps1') -PrintPath |
-    Select-Object -Last 1
-foreach ($name in @('WECOM_ACCESS_TOKEN', 'WECOM_BOT_ID', 'WECOM_SECRET')) {
-    Remove-Item "Env:$name" -ErrorAction SilentlyContinue
-}
-$wecomExitCode = -1
-Invoke-NativeCommand `
-    -Command { & $wecom @WeComArguments } `
-    -ExitCode ([ref]$wecomExitCode)
-exit $wecomExitCode
+. (Join-Path $PSScriptRoot 'invoke-native-command.ps1')
+$result = -1
+Invoke-NativeCommand -Command {
+    & (Join-Path $PSScriptRoot 'run-python.ps1') (Join-Path $PSScriptRoot 'wecom_cli.py') @Arguments
+} -ExitCode ([ref]$result)
+exit $result
