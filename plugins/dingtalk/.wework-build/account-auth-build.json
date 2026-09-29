@@ -16,7 +16,7 @@
     "dws-auth/overlay/provider.go": "bf53b273d7b06bf10e5320fca098afa6a8f794dbbafd5232b3b05e1f5e77ec48",
     "dws-auth/overlay/provider_test.go": "64f8ebe1fcf9927d705fb82efdd4470f6310500da32d87668cb61c8beeb743f9",
     "dws-auth/package.py": "bd1b4b5c7d31beabe31b4f6a70451029180642f779acc1b3572dda234dcd8182",
-    "dws-auth/tests/test_package.py": "36258af48fe9ae4c37807a9c76e42e69cbc8997b80e41c0eadc4371872d5d012",
+    "dws-auth/tests/test_package.py": "2a4223254622fdb66e214a43eba63894aefef45beb205de843856a1216fa7022",
     "dws-auth/tests/test_toolchain.py": "c2306b7ffa0b52505f5cfff09096ad1449bb7e6c059e59dcd192a4c59b1ee889",
     "dws-auth/tests/test_vendor.py": "f297ebe66383355d62a335ac901407e5487d929b86c2ddcb95cf88f87bc3a2de",
     "dws-auth/toolchain.py": "c265669d702c9529036bd088061ce9375ceefd83b3901cc3910b95c43e941232",

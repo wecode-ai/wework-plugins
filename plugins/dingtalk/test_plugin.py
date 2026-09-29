@@ -28,7 +28,9 @@ class PackagedPluginTests(unittest.TestCase):
         verify.verify_native_entry(ROOT)
 
     def test_cloud_authentication_is_declared(self):
-        manifest = json.loads((ROOT / ".codex-plugin/plugin.json").read_text())
+        manifest = json.loads(
+            (ROOT / ".codex-plugin/plugin.json").read_text(encoding="utf-8")
+        )
         connector = next(c for c in manifest["connectors"] if c["slug"] == "dingtalk-access")
         self.assertEqual(connector["accountAuth"]["credentialType"], "bearer")
         self.assertNotIn("exportMode", connector["accountAuth"])

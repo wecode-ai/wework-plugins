@@ -113,7 +113,7 @@ class PackageTests(unittest.TestCase):
             self.assertEqual(manifest["description"], "钉钉认证打包")
 
     def test_exclusive_or_login_coupled_manifest_is_rejected_before_build(self):
-        original = json.loads(self.manifest.read_text())
+        original = json.loads(self.manifest.read_text(encoding="utf-8"))
         for variant in ("exclusive", "oauth2", "coupled"):
             manifest = json.loads(json.dumps(original))
             snapshot = manifest["connectors"][1]["accountAuth"]
@@ -123,11 +123,20 @@ class PackageTests(unittest.TestCase):
                 snapshot["oauth2"] = ["refresh"]
             else:
                 manifest["connectors"][0]["accountAuth"] = snapshot
-            self.manifest.write_text(json.dumps(manifest))
+            self.manifest.write_text(json.dumps(manifest), encoding="utf-8")
             with patch.object(package.subprocess, "run") as build:
                 with self.assertRaisesRegex(ValueError, "separate local login"):
                     package.assemble(self.plugin, self.output, None)
             build.assert_not_called()
+
+    def test_manifest_rejection_does_not_depend_on_the_windows_code_page(self):
+        read_text = Path.read_text
+
+        def legacy_read(path, *args, **kwargs):
+            return read_text(path, *args, **{"encoding": "cp1252", **kwargs})
+
+        with patch.object(Path, "read_text", autospec=True, side_effect=legacy_read):
+            self.test_exclusive_or_login_coupled_manifest_is_rejected_before_build()
 
     def test_symlinks_are_rejected_without_following_the_target(self):
         (self.plugin / "scripts/external").symlink_to(
