@@ -58,7 +58,7 @@ def main() -> None:
             shutil.copyfile(path, sdk / path.name)
         if args.test:
             subprocess.run(
-                ["go", "test", "./internal/auth", "-run", "^TestWegentTransfer"],
+                ["go", "test", "./internal/auth", "-run", "^TestWegent(Transfer|Snapshot)"],
                 cwd=source_root,
                 check=True,
             )

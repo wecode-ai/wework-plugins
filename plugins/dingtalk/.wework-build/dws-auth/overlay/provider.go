@@ -6,11 +6,9 @@ import (
 	"context"
 	"encoding/json"
 	"errors"
-	"fmt"
 	"io"
-	"log/slog"
+	"math"
 	"os"
-	"strconv"
 	"strings"
 	"time"
 
@@ -24,28 +22,11 @@ import (
 var denied = errors.New("plugin_auth_dws_operation_denied")
 
 func export(ctx context.Context) (pluginauth.Account, error) {
-	// The connector targets the official MCP provider. A custom CLI environment
-	// needs its own declaration; never move its grant to another token endpoint.
-	if config.GetMCPBaseURL() != config.DefaultMCPBaseURL {
-		return pluginauth.Account{}, denied
-	}
-	token, err := auth.LoadTokenData(config.DefaultConfigDir())
-	if err != nil || token == nil || token.CorpID == "" || token.UserID == "" || token.Source != "mcp" || token.ClientID == "" || token.AccessToken == "" || token.RefreshToken == "" {
+	token, err := auth.SnapshotWegentToken(ctx, config.DefaultConfigDir())
+	if err != nil {
 		return pluginauth.Account{}, denied
 	}
 	return encode(token)
-}
-
-func detach(ctx context.Context, migrationID string, credential pluginauth.Credential) error {
-	token, err := decode(credential)
-	if err != nil {
-		return denied
-	}
-	err = auth.DetachWegentToken(ctx, config.DefaultConfigDir(), migrationID, token)
-	if errors.Is(err, auth.ErrWegentSourceChanged) {
-		return pluginauth.ErrSourceChanged
-	}
-	return err
 }
 
 func allowed(arguments []string) bool {
@@ -84,56 +65,72 @@ func allowed(arguments []string) bool {
 	return true
 }
 
+// Keep this whitelist symmetric with encode: newly added upstream secret fields
+// must never accidentally become part of the cloud credential.
+var snapshotFields = map[string]bool{
+	"token": true, "expires_at": true, "corp_id": true, "user_id": true,
+	"source": true, "client_id": true,
+}
+
 func decode(credential pluginauth.Credential) (*auth.TokenData, error) {
-	value := make(map[string]any, len(credential))
-	for key, item := range credential {
-		value[key] = item
-	}
-	for _, key := range []string{"expires_at", "refresh_expires_at"} {
-		if raw, ok := value[key]; ok {
-			seconds, err := strconv.ParseFloat(fmt.Sprint(raw), 64)
-			if err != nil || seconds <= 0 || seconds > 253402300799 {
-				return nil, denied
-			}
-			value[key] = time.Unix(int64(seconds), 0).UTC().Format(time.RFC3339)
+	for key := range credential {
+		if !snapshotFields[key] {
+			return nil, denied
 		}
 	}
-	if private, ok := value["provider_private"].(map[string]any); ok {
-		value["persistent_code"] = private["persistent_code"]
+	text := func(key string) string {
+		value, _ := credential[key].(string)
+		return value
 	}
-	encoded, err := json.Marshal(value)
-	if err != nil {
+	var seconds float64
+	switch value := credential["expires_at"].(type) {
+	case json.Number:
+		integer, err := value.Int64()
+		if err != nil {
+			return nil, denied
+		}
+		seconds = float64(integer)
+	case float64:
+		seconds = value
+	case int64:
+		seconds = float64(value)
+	case int:
+		seconds = float64(value)
+	default:
 		return nil, denied
 	}
-	var token auth.TokenData
-	if json.Unmarshal(encoded, &token) != nil || token.AccessToken == "" || token.CorpID == "" || token.UserID == "" {
+	if math.IsNaN(seconds) || math.IsInf(seconds, 0) || seconds <= 0 ||
+		seconds > 253402300799 || seconds != math.Trunc(seconds) {
 		return nil, denied
 	}
-	// The default DWS connector uses MCP-managed OAuth. Direct app credentials
-	// require a separate provider declaration rather than reading a local secret.
-	if token.Source != "mcp" || token.ClientID == "" {
+	token := &auth.TokenData{
+		AccessToken: text("token"), ExpiresAt: time.Unix(int64(seconds), 0),
+		CorpID: text("corp_id"), UserID: text("user_id"),
+		Source: text("source"), ClientID: text("client_id"),
+	}
+	if strings.TrimSpace(token.AccessToken) == "" || strings.TrimSpace(token.CorpID) == "" ||
+		strings.TrimSpace(token.UserID) == "" || token.Source != "mcp" || strings.TrimSpace(token.ClientID) == "" {
 		return nil, denied
 	}
-	return &token, nil
+	return token, nil
 }
 
 func encode(token *auth.TokenData) (pluginauth.Account, error) {
-	data, err := json.Marshal(token)
-	if err != nil {
+	if token == nil {
 		return pluginauth.Account{}, denied
 	}
-	var value pluginauth.Credential
-	if json.Unmarshal(data, &value) != nil {
+	value := pluginauth.Credential{
+		"token": token.AccessToken, "expires_at": token.ExpiresAt.Unix(),
+		"corp_id": token.CorpID, "user_id": token.UserID,
+		"source": token.Source, "client_id": token.ClientID,
+	}
+	if _, err := decode(value); err != nil || !token.ExpiresAt.After(time.Now().Add(30*time.Second)) {
 		return pluginauth.Account{}, denied
 	}
-	value["expires_at"] = token.ExpiresAt.Unix()
-	value["refresh_expires_at"] = token.RefreshExpAt.Unix()
-	value["provider_private"] = map[string]any{"persistent_code": token.PersistentCode}
-	delete(value, "persistent_code")
 	return pluginauth.Account{ID: token.CorpID + ":" + token.UserID, Credential: value}, nil
 }
 
-func withMemory(token *auth.TokenData, writable bool, callback func(string) error) error {
+func withMemory(token *auth.TokenData, callback func(string) error) error {
 	directory, err := os.MkdirTemp("", "wegent-dws-native-")
 	if err != nil {
 		return denied
@@ -156,75 +153,43 @@ func withMemory(token *auth.TokenData, writable bool, callback func(string) erro
 	hooks.AutoPurgeToken = false
 	hooks.ConfigDir = func() string { return directory }
 	hooks.LoadToken = func(string) ([]byte, error) { return json.Marshal(token) }
-	hooks.SaveToken = func(_ string, data []byte) error {
-		if !writable {
-			return denied
-		}
-		var next auth.TokenData
-		if json.Unmarshal(data, &next) != nil || next.CorpID != token.CorpID || next.UserID != token.UserID {
-			return denied
-		}
-		*token = next
-		return nil
-	}
+	hooks.SaveToken = func(string, []byte) error { return denied }
 	hooks.DeleteToken = func(string) error { return denied }
 	hooks.OnAuthError = func(string, error) error { return denied }
-	if !writable {
-		hooks.TokenProvider = func(context.Context, func() (string, error)) (string, error) { return token.AccessToken, nil }
+	hooks.TokenProvider = func(context.Context, func() (string, error)) (string, error) {
+		if !token.ExpiresAt.After(time.Now().Add(30 * time.Second)) {
+			return "", denied
+		}
+		return token.AccessToken, nil
 	}
 	edition.Override(&hooks)
 	defer edition.Override(original)
 	return callback(directory)
 }
 
-func refresh(ctx context.Context, credential pluginauth.Credential) (pluginauth.Account, error) {
-	token, err := decode(credential)
-	if err != nil || token.RefreshToken == "" {
-		return pluginauth.Account{}, denied
-	}
-	err = withMemory(token, true, func(directory string) error {
-		provider := auth.NewOAuthProvider(directory, slog.New(slog.NewTextHandler(io.Discard, nil)))
-		refreshed, err := provider.GetTokenSnapshot(ctx)
-		if err != nil {
-			return denied
-		}
-		*token = *refreshed
-		return nil
-	})
-	if err != nil {
-		return pluginauth.Account{}, denied
-	}
-	return encode(token)
-}
-
-func revoke(ctx context.Context, credential pluginauth.Credential) error {
-	token, err := decode(credential)
-	if err != nil {
-		return err
-	}
-	return withMemory(token, false, func(string) error { return auth.RevokeTokenRemoteForData(ctx, token) })
-}
-
 func run(ctx context.Context, credential pluginauth.Credential, arguments []string) error {
 	if !allowed(arguments) {
 		return denied
 	}
-	if _, ok := credential["refresh_token"]; ok {
-		return denied
-	}
-	if _, ok := credential["provider_private"]; ok {
-		return denied
-	}
 	token, err := decode(credential)
 	if err != nil {
 		return err
+	}
+	if !token.ExpiresAt.After(time.Now().Add(30 * time.Second)) {
+		// A controlled business result leaves the host connection available for
+		// the next source-sync update. No network call or refresh is attempted.
+		return json.NewEncoder(os.Stdout).Encode(map[string]any{
+			"success": false, "authenticated": false,
+			"error":   "dingtalk_cloud_token_expired",
+			"message": "云端认证已过期，请打开本地 WeWork，等待 DWS 刷新同步；本地使用不受影响。",
+		})
 	}
 	// Execute the upstream CLI with the same business command implementation.
 	if len(arguments) == 1 && arguments[0] == "account-status" {
 		return json.NewEncoder(os.Stdout).Encode(map[string]any{"authenticated": true, "accountId": token.CorpID + ":" + token.UserID})
 	}
 	// Its private auth store hooks never read/write the platform Keychain.
-	return withMemory(token, false, func(string) error {
+	return withMemory(token, func(string) error {
 		output, err := capture(func() int {
 			original := os.Args
 			os.Args = append([]string{"dws"}, arguments...)

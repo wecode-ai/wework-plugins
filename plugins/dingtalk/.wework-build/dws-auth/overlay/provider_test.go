@@ -4,11 +4,12 @@ package main
 import (
 	"context"
 	"encoding/json"
-	"io"
+	"math"
 	"net/http"
 	"net/http/httptest"
 	"os"
 	"path/filepath"
+	"strconv"
 	"strings"
 	"testing"
 	"time"
@@ -20,36 +21,79 @@ import (
 )
 
 func fixture() pluginauth.Credential {
-	return pluginauth.Credential{"access_token": "synthetic-old-access", "refresh_token": "synthetic-refresh", "expires_at": time.Now().Add(-time.Minute).Unix(),
-		"refresh_expires_at": time.Now().Add(time.Hour).Unix(), "source": "mcp", "client_id": "synthetic-client", "corp_id": "corp", "user_id": "alice"}
+	// The real private transport uses Decoder.UseNumber, not float64.
+	return pluginauth.Credential{"token": "synthetic-old-access", "expires_at": json.Number(strconv.FormatInt(time.Now().Add(time.Hour).Unix(), 10)),
+		"source": "mcp", "client_id": "synthetic-client", "corp_id": "corp", "user_id": "alice"}
 }
 
-func TestCredentialMappingPreservesIdentityAndHidesPersistentCode(t *testing.T) {
-	value := fixture()
-	value["provider_private"] = map[string]any{"persistent_code": "synthetic-persistent"}
-	token, err := decode(value)
+func TestSnapshotWhitelistNeverExportsPrivateGrants(t *testing.T) {
+	token, err := decode(fixture())
 	if err != nil {
 		t.Fatal(err)
 	}
-	if token.PersistentCode != "synthetic-persistent" {
-		t.Fatal("missing provider private data")
-	}
+	token.RefreshToken, token.PersistentCode = "synthetic-refresh", "synthetic-private"
+	token.RefreshExpAt = time.Now().Add(24 * time.Hour)
 	account, err := encode(token)
-	if err != nil || account.ID != "corp:alice" {
-		t.Fatal("wrong account")
+	if err != nil || account.ID != "corp:alice" || len(account.Credential) != 6 {
+		t.Fatal("wrong snapshot")
 	}
-	if _, ok := account.Credential["persistent_code"]; ok {
-		t.Fatal("private code escaped private fields")
+	data, _ := json.Marshal(account.Credential)
+	if strings.Contains(string(data), "synthetic-refresh") || strings.Contains(string(data), "synthetic-private") {
+		t.Fatal("export leaked a renewable credential")
 	}
-	delete(value, "user_id")
-	if _, err := decode(value); err == nil {
-		t.Fatal("accepted ambiguous account")
+	for _, key := range []string{"refresh_token", "provider_private", "persistent_code", "client_secret", "access_token", "unexpected"} {
+		value := fixture()
+		value[key] = "synthetic-private"
+		if _, err := decode(value); err == nil {
+			t.Fatalf("accepted private/unknown field %s", key)
+		}
+	}
+}
+
+func TestSnapshotRequiresIdentityAndFiniteIntegerExpiry(t *testing.T) {
+	for _, key := range []string{"token", "corp_id", "user_id", "client_id", "source", "expires_at"} {
+		value := fixture()
+		delete(value, key)
+		if _, err := decode(value); err == nil {
+			t.Fatalf("accepted missing %s", key)
+		}
+	}
+	for _, expiry := range []any{nil, "123", true, 0, -1, math.NaN(), math.Inf(1), 1.5, 253402300800.0, json.Number("1.5"), json.Number("9223372036854775808")} {
+		value := fixture()
+		value["expires_at"] = expiry
+		if _, err := decode(value); err == nil {
+			t.Fatalf("accepted invalid expiry %v", expiry)
+		}
+	}
+}
+
+func TestExpiredCloudSnapshotNeverTouchesNetworkOrLocalState(t *testing.T) {
+	original := http.DefaultTransport
+	http.DefaultTransport = roundTrip(func(*http.Request) (*http.Response, error) {
+		t.Fatal("expired snapshot contacted provider")
+		return nil, denied
+	})
+	defer func() { http.DefaultTransport = original }()
+	for _, expiry := range []int64{time.Now().Add(-time.Minute).Unix(), time.Now().Add(20 * time.Second).Unix()} {
+		for _, args := range [][]string{{"account-status"}, {"todo", "task", "get", "--task-id", "synthetic"}} {
+			value := fixture()
+			value["expires_at"] = expiry
+			output, err := capture(func() int {
+				if run(context.Background(), value, args) != nil {
+					return 1
+				}
+				return 0
+			})
+			var result map[string]any
+			if err != nil || json.Unmarshal(output, &result) != nil || result["error"] != "dingtalk_cloud_token_expired" {
+				t.Fatal("expiry was not a recoverable business result")
+			}
+		}
 	}
 }
 
 func TestAccountHealthReturnsMetadataWithoutLocalAuthentication(t *testing.T) {
 	credential := fixture()
-	delete(credential, "refresh_token")
 	output, err := capture(func() int {
 		if run(context.Background(), credential, []string{"account-status"}) != nil {
 			return 1
@@ -78,7 +122,7 @@ func TestMemoryHooksNeverPersistCredentialsOrFallBackToKeychain(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	err = withMemory(token, false, func(directory string) error {
+	err = withMemory(token, func(directory string) error {
 		if config.GetMCPBaseURL() != config.DefaultMCPBaseURL {
 			t.Fatal("business credential inherited a custom token endpoint")
 		}
@@ -121,47 +165,6 @@ type roundTrip func(*http.Request) (*http.Response, error)
 
 func (f roundTrip) RoundTrip(r *http.Request) (*http.Response, error) { return f(r) }
 
-func TestRefreshAndRevokeUseUpstreamProviderWithInMemoryStorage(t *testing.T) {
-	original := http.DefaultTransport
-	defer func() { http.DefaultTransport = original }()
-	calls := 0
-	http.DefaultTransport = roundTrip(func(request *http.Request) (*http.Response, error) {
-		calls++
-		var body map[string]any
-		if json.NewDecoder(request.Body).Decode(&body) != nil {
-			t.Fatal("invalid request")
-		}
-		result := `{}`
-		switch request.URL.Path {
-		case "/oauth2/refreshToken":
-			if body["refreshToken"] != "synthetic-refresh" || body["clientId"] != "synthetic-client" {
-				t.Fatal("wrong refresh identity")
-			}
-			result = `{"accessToken":"synthetic-new-access","refreshToken":"synthetic-rotated","expiresIn":3600,"corpId":"corp","userId":"alice"}`
-		case "/oauth2/revokeToken":
-			if body["accessToken"] != "synthetic-new-access" {
-				t.Fatal("revoked wrong token")
-			}
-		default:
-			t.Fatalf("unexpected provider endpoint %s", request.URL.Path)
-		}
-		return &http.Response{StatusCode: 200, Body: io.NopCloser(strings.NewReader(result)), Header: make(http.Header)}, nil
-	})
-	account, err := refresh(context.Background(), fixture())
-	if err != nil {
-		t.Fatal(err)
-	}
-	if account.ID != "corp:alice" || account.Credential["refresh_token"] != "synthetic-rotated" {
-		t.Fatal("rotation was not preserved")
-	}
-	if revoke(context.Background(), account.Credential) != nil {
-		t.Fatal("revocation failed")
-	}
-	if calls != 2 {
-		t.Fatal("unexpected provider request count")
-	}
-}
-
 func TestBusinessDeniesAuthenticationAndPrivateGrantMaterial(t *testing.T) {
 	product := edition.Get().VisibleProducts()[0]
 	if !allowed([]string{product, "--help"}) {
@@ -172,14 +175,15 @@ func TestBusinessDeniesAuthenticationAndPrivateGrantMaterial(t *testing.T) {
 			t.Fatal("accepted auth control override")
 		}
 	}
-	if run(context.Background(), fixture(), []string{product, "--help"}) == nil {
+	value := fixture()
+	value["refresh_token"] = "synthetic-refresh"
+	if run(context.Background(), value, []string{product, "--help"}) == nil {
 		t.Fatal("business received refresh token")
 	}
 }
 
 func TestRealUpstreamProductHelpRunsWithoutLocalAuthentication(t *testing.T) {
 	value := fixture()
-	delete(value, "refresh_token")
 	output, err := capture(func() int {
 		if run(context.Background(), value, []string{edition.Get().VisibleProducts()[0], "--help"}) != nil {
 			return 1
@@ -241,7 +245,6 @@ func TestRealUpstreamBusinessCommandUsesOnlyTheSuppliedAccessToken(t *testing.T)
 	edition.Override(&hooks)
 	defer edition.Override(original)
 	value := fixture()
-	delete(value, "refresh_token")
 	value["expires_at"] = time.Now().Add(time.Hour).Unix()
 	output, err := capture(func() int {
 		if run(context.Background(), value, []string{"todo", "task", "get", "--task-id", "synthetic-task", "--format", "json"}) != nil {

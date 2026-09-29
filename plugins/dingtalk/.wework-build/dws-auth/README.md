@@ -2,114 +2,64 @@
 sidebar_position: 1
 ---
 
-# DWS 账号认证适配器
+# DWS 本地刷新与云端访问快照
 
-从 DWS `v1.0.58` 固定源码与 Wegent 扩展编译原生 companion。源码归档 SHA-256：
+从 DWS `v1.0.58` 固定源码与插件内扩展编译原生 companion。源码归档 SHA-256：
 `f6b2dcf16b34492d7be25ce63fc81c7155d6a857af21c0604ae16bf4fa96f1e2`。
-`overlay/` 复用官方 `edition.Hooks`、OAuth Provider、撤销和业务命令；
-`auth-overlay/` 在官方认证包中增加交接函数，使用同一把刷新锁与精确账号删除逻辑。
-共享通道来自 `../plugin-auth-go`，插件开发者无需处理套接字、nonce 或帧长度。
+共享私有通道来自 `../plugin-auth-go`，保留其 nonce、帧校验及秘密输出隔离。
+
+## 认证边界（0.3.4）
+
+- `dingtalk-local` 只有本地浏览器登录，正常业务直接调用本地 DWS，不依赖 Broker。
+- `dingtalk-access` 是可选 bearer 连接，只通过私有通道导出访问快照，无第二次 OAuth。
+- 不声明 `exportMode` 或 `oauth2`，不注册 detach、refresh、revoke。
+- 唯一白名单为 token、expires_at、corp_id、user_id、source、client_id。
+  不序列化完整 TokenData，refresh token、persistent code 等永不上传。
+- 本机使用官方双层锁、刷新前持久化预检和刷新保存逻辑。刷新结果先保存到本机，
+  与后续 Backend 上传成败无关；同步失败不删除凭据或标记 profile 失效。
+- 云端拒绝未知/私密字段和无效到期时间；剩余有效期不超过 30 秒时返回
+  `dingtalk_cloud_token_expired` 业务 JSON，不调用上游、不刷新、不回退本地。
+  公共包装器将此结果转换为非零退出码，辅助脚本不能把它当成成功。
+- 业务通过官方 edition.Hooks 的只读内存 TokenProvider 执行，隔离本机配置和钥匙串。
+  限制仍只支持官方 MCP OAuth；自定义 mcp_url 与 direct client secret 不支持同步。
+
+`accountAuth.localEnvironment` 声明本机存储目录与钥匙串配置，经宿主校验后只提供给
+本机导出。令牌不放进 stdout、命令行参数、普通环境变量或聊天上下文。
+后台同步周期由 WeWork 0.5.4 控制，同一连接约 60 秒冷却，不承诺即时同步。
+
+## 构建与验证
+
+从本仓库根目录运行：
 
 ```bash
-uv run --project backend python sdk/dws-auth/build.py \
-  --output executor/target/dws-auth/dws-account-auth --test
+uv run --no-project python plugins/dingtalk/.wework-build/dws-auth/vendor.py .
+uv run --no-project python plugins/dingtalk/.wework-build/dws-auth/vendor.py --check .
+uv run --no-project python plugins/dingtalk/.wework-build/dws-auth/package.py --plugin plugins/dingtalk --output .ci-artifacts/dingtalk-account-auth.zip
 ```
 
-可用 `--source-archive` 传入已下载归档，仍必须通过固定哈希校验；交叉编译遵循
-`GOOS` / `GOARCH`。产物包括二进制、LICENSE、NOTICE 和记录上游哈希、扩展源码哈希、
-目标平台、二进制哈希的 JSON。`--test` 运行隔离的官方存储测试、SDK 通道测试及
-真实 DWS 命令/刷新/撤销的合成服务测试，不使用个人钥匙串或真实钉钉账号。
+此目录现由插件仓库维护；不要用 Wegent 的旧独占迁移适配器覆盖它。
+可通过 `--source-archive` 提供已下载的固定哈希源码包。打包器准备固定 Go 工具链，
+在临时副本生成 macOS arm64/amd64、Linux arm64/amd64 和 Windows amd64 原生文件，
+检查来源/二进制哈希，并在宿主平台执行真实私有通道检查。
+Windows Python 启动器必须等待子进程并传播退出码，不能改回 os.execv。
 
-## 唯一刷新权交接
+`--test` 使用隔离的合成安全存储及 HTTP 服务，不读取用户钥匙串。覆盖本地保留、
+刷新落盘、并发刷新、刷新失败不破坏状态、云端过期拒绝、字段白名单和官方业务命令。
+旧 `wegent_transfer*` 源码及测试仅保留作历史协议回归；新可执行入口不注册交接操作。
 
-安装包通过通用 `accountAuth.localEnvironment` 声明 `DWS_CONFIG_DIR`、
-`DWS_KEYCHAIN_DIR` 目录和 `DWS_DISABLE_KEYCHAIN=1` 开关。宿主校验后仅向本机
-认证回调提供这些设置，Python SDK 入口再显式交给官方适配器，确保迁移读取用户
-实际使用的源存储。未配置时保留官方默认行为；目录必须已存在且为绝对路径。
-这些配置不上传后端，也不传给云端业务、刷新和撤销回调。
+产物含二进制、LICENSE、NOTICE、编译源哈希和平台信息。上传/解压限制仍为
+50 MiB / 200 MiB。源码不含用户状态，构建不得读取发布凭据。
 
-插件声明必须设置 `accountAuth.exportMode: "exclusive"`：
+## 升级与发布限制
 
-1. 本机 `export` 读取现有 MCP OAuth 账号，后端加密暂存，尚无可用连接或设备授权。
-2. `detach` 收到私有通道中的同一快照，持有官方刷新锁，比对当前身份与令牌。
-3. 本机先持久化不含令牌的交接记录，再删除该账号的 Keychain/DPAPI 存储及官方镜像；
-   确认旧刷新材料已不在这些位置后，持久化完成记录。
-4. 原生宿主确认后，后端在一个事务内激活连接、授权源设备并清除暂存密文。
+0.3.3 已交接用户不能无条件自动升级：在旧定义仍安装时，先通过平台支持的流程
+停止同步、退役旧托管连接并处理在途迁移/撤销，再恢复本地 DWS 登录，然后安装新包。
+否则旧刷新所有者可能残留，且新版本无法代替旧定义完成撤销。不得删除回执假装恢复。
+本地仍有凭据的 0.2.9 用户无需第二次 OAuth。
 
-删除后的进程退出可凭同一交接记录恢复；后端确认可幂等重试。发生刷新竞争时，
-适配器先在同一把锁内持久化旧 ID 的作废记录，再由原生宿主取消旧密文暂存；
-用户重试会获取新 ID 和当前令牌。迟到的旧进程无法删除凭据或激活旧快照。
-账号变化或异常存储状态仍拒绝激活。交接仅支持 MCP OAuth；不读取 direct 模式的
-本地 client secret。业务进程只收到 Access Token，拒绝 Refresh Token 和
-`provider_private`，官方存储 hook 仅在内存读写。
+本地退出不等于云端快照立即失效；停止云端使用需断开云端连接，离线时只能保证
+快照到期后不可使用。已断开的连接不会被普通周期导出重新启用。
 
-## 生成完整插件包
-
-```bash
-uv run --project backend python sdk/dws-auth/package.py \
-  --plugin ../wework-plugins-public/plugins/dingtalk \
-  --output executor/target/dws-auth/dingtalk-account-auth.zip
-```
-
-源码声明 `accountAuth` 并包含公共 SDK；打包器在临时副本中增加五个平台的原生适配器
-（macOS arm64/amd64、Linux arm64/amd64、Windows amd64），保留许可证、来源及哈希。
-它拒绝符号链接，检查每个二进制哈希，并在当前平台实际执行包内 Python 入口和原生
-私有通道：健康检查必须成功，错误 Connector 和携带刷新令牌的业务请求必须失败，
-本机认证目录不得出现。任一步失败均不替换已有输出包。
-
-压缩包仍遵守 Wegent 的 50 MiB 上传与 200 MiB 解压限制。公开命令入口和 24 个 Python
-辅助脚本已通过公共 SDK 委派业务；已迁移账号的准备检查不再执行 DWS 登录。
-
-## CI 与官方分发
-
-插件根目录的 `.wework-build.json` 声明构建入口与生成目录，构建依赖保存在
-`plugins/dingtalk/.wework-build/`。从 GitHub 提取插件目录并同步到内网 MR 时，
-这些输入会一起保留，无需另行同步仓库根目录或下载专用制品。
-
-```bash
-uv run --project backend python sdk/dws-auth/vendor.py ../wework-plugins-public
-uv run --project backend python sdk/dws-auth/vendor.py --check ../wework-plugins-public
-uv run --no-project python sdk/plugin-build/vendor.py ../wework-plugins
-```
-
-内网仍使用原有 `package_plugin → unit_linux → release_plugin` 流程。打包任务
-自动调用声明的入口，按固定版本与哈希准备 Go 编译器，生成五平台原生文件；测试任务
-直接验证解压后的安装包，并记录实际测试的 SHA-256。发布任务只发布同一份已测试 ZIP。
-普通插件没有构建声明，继续使用原来的源码打包行为。
-
-源码、声明、SDK、风险说明与文件模式必须保持不变；只能增加声明的生成目录。
-Backend 继续核对受保护分支、提交、MR 和源码身份，并向 GitLab 核实构建任务制品的
-完整哈希及测试任务的哈希回执。缺少二进制、改写源码、制品不匹配、测试失败或
-回执缺失均拒绝发布。构建过程不接收发布 Token 或个人认证环境。
-
-本地发布也使用同一个入口，不需要判断包类型或手填哈希：
-
-```bash
-cd backend
-uv run python scripts/publish_official_plugin.py ../../wework-plugins-public/plugins/dingtalk --slug dingtalk --visibility public --dry-run
-```
-
-去掉 `--dry-run` 才会发布到当前 Backend 配置的市场。批量 seed 同样自动构建。
-已有制品的维护入口 `--prebuilt --sha256` 保留，但不是日常发布的必选步骤。
-
-## 交付边界
-
-当前适配器只接受默认钉钉 MCP 服务。配置了自定义 `mcp_url` 的源账号不会导出；
-内存执行期间也隔离本机 DWS 配置，防止运行设备的配置改变令牌接收端。
-
-当前源码测试已覆盖交接恢复、精确账号删除、刷新竞争拒绝，以及官方业务命令调用。
-macOS 本地编译与 Windows/Linux 交叉编译已验证；Windows 真机存储与真实提供方仍待验收。
-源码已声明 `accountAuth`；发布时自动生成包含原生适配器的完整安装包。
-构建与官方分发入口已接通。相同打包器、原生入口和五平台二进制的最小业务夹具，
-已通过真实发布服务、安装同步、Backend / Electron / 云端 Executor 的账号状态检查，
-包括授权前拒绝、授权后成功和撤销后拒绝。独立 Electron 验收进一步使用官方代码
-创建隔离的加密源存储，经桌面迁移后确认目标账号原授权已移除、另一账号不变，
-重载后连接保留。证据位于
-`wework/test-results/ai-verify/2026-09-07T12-19-29-787Z-40328/dws-source-qa.json`。
-所有凭据均为合成数据，不读取个人钥匙串；真实服务方、系统钥匙串/DPAPI、远端 CI
-和实际发布仍待验收。
-注册的完整桌面检查点同样通过官方源存储迁移、云端授权、业务调用与撤销，
-20 项标记全部成功，证据目录为
-`wework/test-results/desktop-e2e/2026-09-07T12-20-59-116Z-47125/`。
-通用 SDK 的交接中断恢复已通过真实 Backend / Electron / 云端 Executor 合成提供方 E2E。
-源码可构建不代表插件已发布或用户可直接使用。
+插件根目录 `.wework-build.json` 继续接入现有 package/test/release 流程；
+本次未修改 WeWork 源码，也不自动提交、发布或操作真实连接。
+合成测试和交叉编译不代替 WeWork 0.5.4 真机 UI、系统钥匙串、周期同步及真实云端验收。

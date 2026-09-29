@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""Public DWS entry: business metadata goes to the shared native broker."""
+"""Local DWS stays local; cloud commands use an access-only snapshot."""
 
 from __future__ import annotations
 
@@ -39,34 +39,6 @@ def account_arguments(arguments: list[str]) -> tuple[str | None, list[str]]:
             forwarded.append(value)
         index += 1
     return account, forwarded
-
-
-def source_is_managed() -> bool:
-    """Receipts are public handoff metadata; never inspect the DWS token store."""
-    directory = Path(os.environ.get("DWS_CONFIG_DIR") or Path.home() / ".dws")
-    receipts = directory / "wegent-transfers"
-    if not receipts.exists():
-        return False
-    # Once handoff started, uncertainty must not trigger another local login.
-    if receipts.is_symlink() or not receipts.is_dir():
-        raise AuthError("plugin_auth_reconnect_required")
-    for path in receipts.glob("*.json"):
-        if path.is_symlink() or not path.is_file() or path.stat().st_size > 4096:
-            raise AuthError("plugin_auth_reconnect_required")
-        try:
-            value = json.loads(path.read_text(encoding="utf-8"))
-            if value.get("version") != 1 or value.get("state") not in {
-                "prepared",
-                "detached",
-                "aborted",
-            }:
-                raise ValueError
-        except (ValueError, AttributeError):
-            raise AuthError("plugin_auth_reconnect_required") from None
-        if value["state"] == "aborted":
-            continue
-        return True
-    return False
 
 
 def local_environment() -> dict[str, str]:
@@ -129,18 +101,29 @@ def main(arguments: list[str]) -> int:
                 raise AuthError("plugin_auth_invalid_command")
             executable, arguments = arguments[1], arguments[2:]
         account, arguments = account_arguments(arguments)
-        if (
-            os.environ.get("WEGENT_PLUGIN_AUTH_MODE") == "cloud"
-            or account is not None
-            or source_is_managed()
-        ):
+        mode = os.environ.get("WEGENT_PLUGIN_AUTH_MODE", "")
+        if mode not in {"", "local", "cloud"}:
+            raise AuthError("plugin_auth_runtime_unsupported")
+        if mode == "cloud" or account is not None:
             if executable is not None:
                 raise AuthError("plugin_auth_invalid_command")
             if arguments == ["plugin-health"]:
                 arguments = ["account-status"]
-            sys.stdout.write(
-                run_account_command(ROOT, "dingtalk", arguments, account_id=account)
+            output = run_account_command(
+                ROOT, "dingtalk-access", arguments, account_id=account
             )
+            sys.stdout.write(output)
+            # Expected snapshot expiry is a business result, not a host protocol
+            # failure. Preserve it for helpers without replaying the operation.
+            try:
+                result = json.loads(output)
+            except ValueError:
+                result = None
+            if (
+                isinstance(result, dict)
+                and result.get("error") == "dingtalk_cloud_token_expired"
+            ):
+                return 1
             return 0
         return run_local(arguments, executable)
     except AuthError as error:

@@ -29,8 +29,13 @@ class PackagedPluginTests(unittest.TestCase):
 
     def test_cloud_authentication_is_declared(self):
         manifest = json.loads((ROOT / ".codex-plugin/plugin.json").read_text())
-        connector = next(c for c in manifest["connectors"] if c["slug"] == "dingtalk")
-        self.assertEqual(connector["accountAuth"]["exportMode"], "exclusive")
+        connector = next(c for c in manifest["connectors"] if c["slug"] == "dingtalk-access")
+        self.assertEqual(connector["accountAuth"]["credentialType"], "bearer")
+        self.assertNotIn("exportMode", connector["accountAuth"])
+        self.assertNotIn("oauth2", connector["accountAuth"])
+        local = next(c for c in manifest["connectors"] if c["slug"] == "dingtalk-local")
+        self.assertIn("localAuth", local)
+        self.assertNotIn("accountAuth", local)
         self.assertEqual(connector["accountAuth"]["adapter"], "scripts/account-auth.py")
 
 

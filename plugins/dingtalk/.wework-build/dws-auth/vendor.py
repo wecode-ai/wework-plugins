@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""Vendor the canonical build sources so plugin CI needs only its own checkout."""
+"""Inventory plugin-owned build sources derived from the Wegent SDK."""
 
 import argparse
 import hashlib
@@ -31,7 +31,7 @@ def bundle(repository: Path, *, check: bool = False) -> None:
     files = source_files()
     inventory = {
         "schemaVersion": 1,
-        "source": "Wegent/sdk",
+        "source": "wework-plugins-public/plugins/dingtalk/.wework-build",
         "files": {
             name: hashlib.sha256(content).hexdigest()
             for name, content in sorted(files.items())
@@ -53,7 +53,7 @@ def bundle(repository: Path, *, check: bool = False) -> None:
         if actual != set(files) or any(
             (target / name).read_bytes() != content for name, content in files.items()
         ):
-            raise ValueError("Vendored build sources differ from the canonical SDK")
+            raise ValueError("Vendored build sources differ from the reviewed inventory")
         return
     if actual - set(files):
         raise ValueError("Build support destination contains unexpected files")

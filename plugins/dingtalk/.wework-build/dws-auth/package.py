@@ -54,11 +54,21 @@ def assemble(plugin: Path, output: Path, source_archive: Path | None) -> None:
             raise ValueError(
                 "Expected the DingTalk plugin with its native adapter entry"
             )
-        connector = next(
-            item for item in manifest["connectors"] if item["slug"] == "dingtalk"
-        )
-        if connector.get("accountAuth", {}).get("exportMode") != "exclusive":
-            raise ValueError("DingTalk source must declare its account authentication")
+        connectors = {item["slug"]: item for item in manifest["connectors"]}
+        local = connectors.get("dingtalk-local", {})
+        snapshot = connectors.get("dingtalk-access", {})
+        account = snapshot.get("accountAuth", {})
+        if (
+            not local.get("localAuth")
+            or "accountAuth" in local
+            or snapshot.get("authPolicy") != "optional"
+            or "localAuth" in snapshot
+            or account.get("credentialType") != "bearer"
+            or account.get("adapter") != "scripts/account-auth.py"
+            or "exportMode" in account
+            or "oauth2" in account
+        ):
+            raise ValueError("DingTalk must separate local login and access-only snapshots")
         if (staged / "scripts/account-auth.py").read_bytes() != (
             ROOT / "entry.py"
         ).read_bytes():
