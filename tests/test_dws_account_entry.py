@@ -136,18 +136,41 @@ class PublicEntryTests(unittest.TestCase):
         self.assertEqual(self.calls[0][1]["args"], ["account-status"])
         self.assertFalse((self.home / ".dws").exists())
 
-    def test_detached_local_account_uses_the_broker_without_source_credentials(self):
+    def test_legacy_receipts_never_force_local_commands_through_broker(self):
         receipts = self.home / ".dws/wegent-transfers"
         receipts.mkdir(parents=True)
-        (receipts / ("b" * 64 + ".json")).write_text(
-            json.dumps({"version": 1, "state": "detached", "fingerprint": "c" * 64})
-        )
-        result = self.invoke(
-            ["todo", "task", "get"],
-            {**self.environment, "WEGENT_PLUGIN_AUTH_MODE": "local"},
-        )
-        self.assertEqual(result.returncode, 0, result.stderr)
+        for contents in ('{"version":1,"state":"detached"}',
+                         '{"version":1,"state":"prepared"}', 'invalid-json'):
+            (receipts / ("b" * 64 + ".json")).write_text(contents)
+            environment = {**self.environment, "WEGENT_PLUGIN_AUTH_MODE": "local"}
+            environment.pop("WEGENT_PLUGIN_AUTH_BROKER")
+            environment.pop("WEGENT_PLUGIN_AUTH_BROKER_TOKEN")
+            with patch.dict(os.environ, environment, clear=True), patch.object(
+                dws, "run_local", return_value=0
+            ) as local:
+                self.assertEqual(dws.main(["todo", "task", "get"]), 0)
+            local.assert_called_once()
+        self.assertEqual(self.calls, [])
+
+    def test_cloud_without_broker_never_falls_back_to_local(self):
+        environment = dict(self.environment)
+        environment.pop("WEGENT_PLUGIN_AUTH_BROKER")
+        environment.pop("WEGENT_PLUGIN_AUTH_BROKER_TOKEN")
+        with patch.dict(os.environ, environment, clear=True), patch.object(
+            dws, "run_local"
+        ) as local:
+            self.assertEqual(dws.main(["plugin-health"]), 1)
+        local.assert_not_called()
+
+    def test_expired_cloud_snapshot_fails_without_replaying_business_command(self):
+        self.reply = {"stdout": json.dumps({
+            "success": False, "error": "dingtalk_cloud_token_expired"
+        })}
+        result = self.invoke(["todo", "task", "create"])
+        self.assertEqual(result.returncode, 1)
+        self.assertEqual(json.loads(result.stdout)["error"], "dingtalk_cloud_token_expired")
         self.assertEqual(len(self.calls), 1)
+        self.assertFalse((self.home / ".dws").exists())
 
     def test_unmigrated_local_account_keeps_the_existing_cli(self):
         with patch.dict(
@@ -158,6 +181,27 @@ class PublicEntryTests(unittest.TestCase):
             self.assertEqual(dws.main(["todo", "task", "get"]), 7)
         local.assert_called_once_with(["todo", "task", "get"], None)
         self.assertEqual(self.calls, [])
+
+    def test_local_entry_runs_without_any_broker_environment(self):
+        environment = dict(self.environment)
+        for key in list(environment):
+            if key.startswith("WEGENT_PLUGIN_AUTH_"):
+                environment.pop(key)
+        result = self.invoke([
+            "--local-binary", sys.executable, "-c",
+            'print("synthetic-local-dws-success")',
+        ], environment)
+        self.assertEqual(result.returncode, 0, result.stderr)
+        self.assertEqual(result.stdout.strip(), "synthetic-local-dws-success")
+        self.assertEqual(self.calls, [])
+
+    def test_unknown_execution_mode_does_not_start_local_login(self):
+        with patch.dict(
+            os.environ, {**self.environment, "WEGENT_PLUGIN_AUTH_MODE": "unknown"},
+            clear=True,
+        ), patch.object(dws, "run_local") as local:
+            self.assertEqual(dws.main(["plugin-health"]), 1)
+        local.assert_not_called()
 
     def test_aborted_transfer_does_not_mark_the_new_source_as_managed(self):
         receipts = self.home / ".dws/wegent-transfers"
@@ -200,7 +244,7 @@ class PublicEntryTests(unittest.TestCase):
             timeout=10,
         )
         self.assertEqual(result.returncode, 0, result.stderr)
-        self.assertEqual(self.calls[0][1]["connector_slug"], "dingtalk")
+        self.assertEqual(self.calls[0][1]["connector_slug"], "dingtalk-access")
 
     def test_native_adapter_requires_matching_artifact_metadata(self):
         spec = importlib.util.spec_from_file_location(

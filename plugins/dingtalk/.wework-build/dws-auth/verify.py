@@ -89,7 +89,7 @@ def invoke(
                     {
                         "protocolVersion": 1,
                         "connectorSlug": connector,
-                        "credentialType": "oauth2",
+                        "credentialType": "bearer",
                         "credential": credential,
                     }
                 ).encode()
@@ -106,7 +106,7 @@ def invoke(
 
 def verify_native_entry(plugin: Path) -> None:
     credential = {
-        "access_token": "synthetic-package-access-token",
+        "token": "synthetic-package-access-token",
         "corp_id": "synthetic-corp",
         "user_id": "synthetic-user",
         "source": "mcp",
@@ -116,18 +116,21 @@ def verify_native_entry(plugin: Path) -> None:
     with tempfile.TemporaryDirectory(prefix="wegent-dws-verify-") as temporary:
         home = Path(temporary) / "home"
         home.mkdir()
-        success = invoke(plugin, home, credential, "dingtalk")
+        success = invoke(plugin, home, credential, "dingtalk-access")
         if success.returncode != 0 or json.loads(success.stdout) != {
             "authenticated": True,
             "accountId": "synthetic-corp:synthetic-user",
         }:
             raise ValueError("DWS packaged adapter health failed")
+        expired = invoke(plugin, home, {**credential, "expires_at": 1}, "dingtalk-access")
+        if expired.returncode != 0 or json.loads(expired.stdout).get("error") != "dingtalk_cloud_token_expired":
+            raise ValueError("DWS packaged adapter did not reject expired snapshot")
         rejected = [
             invoke(
                 plugin,
                 home,
                 {**credential, "refresh_token": "synthetic-refresh-token"},
-                "dingtalk",
+                "dingtalk-access",
             ),
             invoke(plugin, home, credential, "wrong-connector"),
         ]
@@ -138,7 +141,7 @@ def verify_native_entry(plugin: Path) -> None:
         if any(
             token in result.stdout + result.stderr
             for token in (b"synthetic-package-access-token", b"synthetic-refresh-token")
-            for result in [success, *rejected]
+            for result in [success, expired, *rejected]
         ):
             raise ValueError("DWS packaged adapter exposed a credential")
         # Docker Desktop's Rosetta loader creates two empty cache directories.

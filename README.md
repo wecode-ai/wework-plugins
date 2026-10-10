@@ -49,8 +49,8 @@ PowerShell script and runs the native Windows authorization/exit-code tests on
 
 ## DingTalk builds
 
-DingTalk 0.3.1 declares its build in `plugins/dingtalk/.wework-build.json` and keeps
-all canonical SDK inputs inside `.wework-build/` in that plugin directory.
+DingTalk 0.3.4 declares its build in `plugins/dingtalk/.wework-build.json` and keeps
+all reviewed build inputs inside `.wework-build/` in that plugin directory.
 GitHub-to-internal-repository mirroring therefore retains everything needed by
 the existing MR, package, test and automatic-release pipeline. No separate
 account-authentication edition or manual artifact selection is needed.
@@ -60,11 +60,20 @@ uv run --no-project --python 3.12 python plugins/dingtalk/.wework-build/dws-auth
 uv run --no-project --python 3.12 python plugins/dingtalk/.wework-build/dws-auth/package.py --plugin plugins/dingtalk --output .ci-artifacts/dingtalk-account-auth.zip
 ```
 
-Maintain generated inputs in Wegent and refresh them with `sdk/dws-auth/vendor.py`.
+The access-only adapter is maintained in this plugin repository; do not overwrite
+it with the older exclusive-migration SDK from Wegent. Refresh the local inventory
+with `plugins/dingtalk/.wework-build/dws-auth/vendor.py .` after changes.
 The builder prepares pinned Go tools, preserves reviewed source, builds five native
 targets and exercises the private adapter. The ordinary official publishing command
 automatically runs this build; GitLab tests and releases the same resulting ZIP.
 The GitHub workflow remains an additional cross-platform build check.
+
+0.3.4 keeps local DWS as the sole refresh owner and syncs access-only snapshots
+through WeWork 0.5.4. It does not require a new desktop release. This is not an
+unconditional auto-upgrade for 0.3.3 users: retire any existing exclusive cloud
+connection while the old definition is still installed, then restore local login
+and install the new plugin. Do not delete handoff receipts or silently leave the
+old cloud refresh owner running. See the [design and release gates](docs/dingtalk-auth-wework-0.5.4-design.md).
 
 ## Adding a plugin
 

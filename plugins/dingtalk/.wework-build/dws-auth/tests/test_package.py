@@ -31,7 +31,9 @@ class PackageTests(unittest.TestCase):
                     "name": "dingtalk",
                     "description": "钉钉认证打包",
                     "connectors": [
-                        {"slug": "dingtalk", "accountAuth": {"exportMode": "exclusive"}}
+                        {"slug": "dingtalk-local", "localAuth": {"kind": "browser_oauth"}},
+                        {"slug": "dingtalk-access", "authPolicy": "optional",
+                         "accountAuth": {"credentialType": "bearer", "adapter": "scripts/account-auth.py"}}
                     ],
                 },
                 ensure_ascii=False,
@@ -86,7 +88,7 @@ class PackageTests(unittest.TestCase):
             )
             manifest = json.loads(archive.read(".codex-plugin/plugin.json"))
             self.assertEqual(
-                manifest["connectors"][0]["accountAuth"]["exportMode"], "exclusive"
+                manifest["connectors"][1]["accountAuth"]["credentialType"], "bearer"
             )
             for target in package.TARGETS:
                 prefix = "scripts/native/" + target.replace("/", "-") + "/"
@@ -109,6 +111,32 @@ class PackageTests(unittest.TestCase):
         with zipfile.ZipFile(self.output) as archive:
             manifest = json.loads(archive.read(".codex-plugin/plugin.json"))
             self.assertEqual(manifest["description"], "钉钉认证打包")
+
+    def test_exclusive_or_login_coupled_manifest_is_rejected_before_build(self):
+        original = json.loads(self.manifest.read_text(encoding="utf-8"))
+        for variant in ("exclusive", "oauth2", "coupled"):
+            manifest = json.loads(json.dumps(original))
+            snapshot = manifest["connectors"][1]["accountAuth"]
+            if variant == "exclusive":
+                snapshot["exportMode"] = "exclusive"
+            elif variant == "oauth2":
+                snapshot["oauth2"] = ["refresh"]
+            else:
+                manifest["connectors"][0]["accountAuth"] = snapshot
+            self.manifest.write_text(json.dumps(manifest), encoding="utf-8")
+            with patch.object(package.subprocess, "run") as build:
+                with self.assertRaisesRegex(ValueError, "separate local login"):
+                    package.assemble(self.plugin, self.output, None)
+            build.assert_not_called()
+
+    def test_manifest_rejection_does_not_depend_on_the_windows_code_page(self):
+        read_text = Path.read_text
+
+        def legacy_read(path, *args, **kwargs):
+            return read_text(path, *args, **{"encoding": "cp1252", **kwargs})
+
+        with patch.object(Path, "read_text", autospec=True, side_effect=legacy_read):
+            self.test_exclusive_or_login_coupled_manifest_is_rejected_before_build()
 
     def test_symlinks_are_rejected_without_following_the_target(self):
         (self.plugin / "scripts/external").symlink_to(
@@ -200,11 +228,13 @@ class VerificationStateTests(unittest.TestCase):
                 (home / ".cache/rosetta/state").write_bytes(b"synthetic")
             elif state == "provider":
                 (home / ".dws").mkdir(exist_ok=True)
-            accepted = connector == "dingtalk" and "refresh_token" not in credential
+            accepted = connector == "dingtalk-access" and "refresh_token" not in credential
             payload = {
                 "authenticated": True,
                 "accountId": "synthetic-corp:synthetic-user",
             }
+            if credential.get("expires_at") == 1:
+                payload = {"error": "dingtalk_cloud_token_expired"}
             return verify.subprocess.CompletedProcess(
                 [],
                 0 if accepted else 1,
