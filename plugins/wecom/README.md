@@ -2,6 +2,9 @@
 
 本地通过官方 CLI 扫码连接机器人，Wegent 同步认证后，云端可以直接使用消息、联系人、会议、日程、待办和文档能力。
 
+0.2.1 包含云端授权能力清单读取修复：优先读取 `manifest-v2.json`，保留旧宿主
+`manifest.json` 支持及现有本地登录流程。发布校验见[仓库清单](../../README.md#cloud-authentication-fix-versions)。
+
 ## 认证与调用
 
 连接采用 `password` 类型：用户名为 Bot ID，密码为 Bot Secret。它不是 OAuth，不需要迁移刷新权；本地原认证继续可用。适配器只通过私有认证通道导出和接收凭据。

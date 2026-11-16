@@ -1,6 +1,6 @@
 {
   "name": "lark",
-  "version": "0.2.0",
+  "version": "0.2.1",
   "description": "通过飞书官方 CLI 使用协作能力，本机登录后由 Wegent 托管用户 OAuth 与应用机器人认证。",
   "author": {
     "name": "Wegent"
