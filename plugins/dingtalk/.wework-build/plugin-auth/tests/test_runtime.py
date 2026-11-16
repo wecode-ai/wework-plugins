@@ -156,13 +156,18 @@ class RuntimeTests(unittest.TestCase):
                     runtime._installed_id(codex)
 
     def test_runtime_copy_dispatches_managed_id_to_broker(self):
+        for manifest_name in ("manifest.json", "manifest-v2.json"):
+            with self.subTest(manifest=manifest_name):
+                self._assert_runtime_copy_dispatches_managed_id_to_broker(manifest_name)
+
+    def _assert_runtime_copy_dispatches_managed_id_to_broker(self, manifest_name):
         with tempfile.TemporaryDirectory() as directory:
             home = Path(directory)
             capabilities = home / "capabilities"
             root = home / "codex/plugins/cache/market/mail/1.0"
             root.mkdir(parents=True)
             capabilities.mkdir()
-            (capabilities / "manifest-v2.json").write_text(
+            (capabilities / manifest_name).write_text(
                 json.dumps(
                     {
                         "plugins": {
@@ -198,3 +203,117 @@ class RuntimeTests(unittest.TestCase):
             self.assertEqual(payload["installed_plugin_id"], 42)
             self.assertEqual(payload["args"], ["list", "--limit", "1"])
             self.assertEqual(result, "synthetic mailbox result")
+
+    def _assert_manifest_failure_does_not_dispatch(self, home, root):
+        with (
+            patch.dict(
+                os.environ,
+                {
+                    "WEGENT_EXECUTOR_HOME": str(home),
+                    "WEGENT_PLUGIN_AUTH_BROKER": "http://127.0.0.1:1234/v1/run",
+                    "WEGENT_PLUGIN_AUTH_BROKER_TOKEN": "a" * 64,
+                },
+                clear=True,
+            ),
+            patch.object(runtime.urllib.request, "build_opener") as build,
+        ):
+            with self.assertRaises(AuthError):
+                run_account_command(root, "mail", ["list"])
+        build.assert_not_called()
+
+    def test_invalid_v2_never_dispatches_using_a_valid_legacy_manifest(self):
+        with tempfile.TemporaryDirectory() as directory:
+            home = Path(directory)
+            capabilities = home / "capabilities"
+            root = capabilities / "store/plugins/mail"
+            root.mkdir(parents=True)
+            entry = {
+                "installed_plugin_id": 42,
+                "enabled": True,
+                "managed": True,
+                "store_path": "store/plugins/mail",
+            }
+            legacy = {"plugins": {"mail": entry}}
+            (capabilities / "manifest.json").write_text(json.dumps(legacy))
+            cases = {
+                "invalid-json": "{",
+                "empty": json.dumps({"plugins": {}}),
+                "disabled": json.dumps({"plugins": {"mail": {**entry, "enabled": False}}}),
+                "unmanaged": json.dumps({"plugins": {"mail": {**entry, "managed": False}}}),
+                "duplicate": json.dumps({"plugins": {"mail": entry, "other": entry}}),
+                "invalid-id": json.dumps({"plugins": {"mail": {**entry, "installed_plugin_id": 0}}}),
+                "unregistered": json.dumps({"plugins": {"mail": {**entry, "store_path": "store/other"}}}),
+                "oversize": json.dumps({**legacy, "padding": " " * (8 * 1024 * 1024)}),
+            }
+            for name, contents in cases.items():
+                with self.subTest(case=name):
+                    (capabilities / "manifest-v2.json").write_text(contents)
+                    self._assert_manifest_failure_does_not_dispatch(home, root)
+
+    def test_v2_io_failures_never_fall_back_to_legacy(self):
+        with tempfile.TemporaryDirectory() as directory:
+            home = Path(directory)
+            capabilities = home / "capabilities"
+            root = capabilities / "store/plugins/mail"
+            root.mkdir(parents=True)
+            contents = json.dumps({"plugins": {"mail": {
+                "installed_plugin_id": 42,
+                "enabled": True,
+                "managed": True,
+                "store_path": "store/plugins/mail",
+            }}})
+            (capabilities / "manifest.json").write_text(contents)
+            manifest = capabilities / "manifest-v2.json"
+            manifest.write_text(contents)
+            for method in ("lstat", "read_text"):
+                original = getattr(Path, method)
+
+                def inaccessible(path, *args, **kwargs):
+                    if path == manifest:
+                        raise PermissionError("synthetic unreadable v2 manifest")
+                    return original(path, *args, **kwargs)
+
+                with self.subTest(method=method), patch.object(Path, method, inaccessible):
+                    self._assert_manifest_failure_does_not_dispatch(home, root)
+
+    def test_v2_symlinks_never_fall_back_to_legacy(self):
+        with tempfile.TemporaryDirectory() as directory:
+            home = Path(directory)
+            capabilities = home / "capabilities"
+            root = capabilities / "store/plugins/mail"
+            root.mkdir(parents=True)
+            contents = json.dumps({"plugins": {"mail": {
+                "installed_plugin_id": 42,
+                "enabled": True,
+                "managed": True,
+                "store_path": "store/plugins/mail",
+            }}})
+            (capabilities / "manifest.json").write_text(contents)
+            target = capabilities / "other.json"
+            target.write_text(contents)
+            manifest = capabilities / "manifest-v2.json"
+            for destination in (target, capabilities / "missing.json"):
+                with self.subTest(target=destination.name):
+                    try:
+                        manifest.symlink_to(destination)
+                    except OSError:
+                        if sys.platform == "win32":
+                            self.skipTest("Windows symlink privilege is unavailable")
+                        raise
+                    self._assert_manifest_failure_does_not_dispatch(home, root)
+                    manifest.unlink()
+
+    def test_v2_directory_never_falls_back_to_legacy(self):
+        with tempfile.TemporaryDirectory() as directory:
+            home = Path(directory)
+            capabilities = home / "capabilities"
+            root = capabilities / "store/plugins/mail"
+            root.mkdir(parents=True)
+            (capabilities / "manifest.json").write_text(json.dumps({"plugins": {"mail": {
+                "installed_plugin_id": 42,
+                "enabled": True,
+                "managed": True,
+                "store_path": "store/plugins/mail",
+            }}}))
+            (capabilities / "manifest-v2.json").mkdir()
+            self._assert_manifest_failure_does_not_dispatch(home, root)

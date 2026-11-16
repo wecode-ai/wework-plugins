@@ -100,6 +100,11 @@ class RuntimeTests(unittest.TestCase):
                 self.assertEqual(local_auth.action("health"), "need_login")
 
     def test_cloud_process_only_sends_public_broker_request(self):
+        for manifest_name in ("manifest.json", "manifest-v2.json"):
+            with self.subTest(manifest=manifest_name):
+                self._assert_cloud_process_only_sends_public_broker_request(manifest_name)
+
+    def _assert_cloud_process_only_sends_public_broker_request(self, manifest_name):
         requests = []
 
         class Handler(http.server.BaseHTTPRequestHandler):
@@ -118,7 +123,7 @@ class RuntimeTests(unittest.TestCase):
             home = Path(directory)
             capabilities = home / "executor/capabilities"
             capabilities.mkdir(parents=True)
-            (capabilities / "manifest-v2.json").write_text(
+            (capabilities / manifest_name).write_text(
                 json.dumps(
                     {
                         "plugins": {
@@ -157,6 +162,7 @@ class RuntimeTests(unittest.TestCase):
                     )
                     self.assertEqual(result.returncode, 0, result.stderr.decode())
                     self.assertEqual(requests[-1]["connector_slug"], slug)
+                    self.assertEqual(requests[-1]["installed_plugin_id"], 123)
                     self.assertNotIn("credential", requests[-1])
                 self.assertFalse((home / ".wegent-executor").exists())
             finally:

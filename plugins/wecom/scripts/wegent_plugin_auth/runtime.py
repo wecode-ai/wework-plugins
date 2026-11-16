@@ -72,6 +72,11 @@ def _installed_id(plugin_root: Path) -> int:
         raise AuthError("plugin_auth_package_sync_required")
     capabilities = Path(home) / "capabilities"
     manifest = capabilities / "manifest-v2.json"
+    # Older hosts write only the legacy manifest; an existing v2 is authoritative.
+    try:
+        manifest.lstat()
+    except FileNotFoundError:
+        manifest = capabilities / "manifest.json"
     if manifest.is_symlink() or manifest.stat().st_size > 8 * 1024 * 1024:
         raise AuthError("plugin_auth_package_sync_required")
     entries = json.loads(manifest.read_text(encoding="utf-8"))["plugins"]

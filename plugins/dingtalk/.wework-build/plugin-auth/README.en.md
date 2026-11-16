@@ -28,6 +28,9 @@ The SDK resolves installation identity using the host capabilities manifest entr
 `store_path`, `runtime.codex_link`, and `runtime.claude_link`, including runtime copies.
 Unregistered, disabled, unmanaged, or ambiguous paths cannot dispatch account requests.
 The native host still verifies package checksums and device grants.
+The SDK prefers `capabilities/manifest-v2.json` and reads `manifest.json` only when
+v2 is absent, supporting older hosts including WeWork 0.5.4. An existing v2 manifest
+never falls back to the legacy file when validation or reading fails.
 
 ## Scaffold a provider
 
