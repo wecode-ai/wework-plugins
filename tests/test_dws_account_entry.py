@@ -23,7 +23,7 @@ class PublicEntryTests(unittest.TestCase):
         self.home = Path(self.temporary.name)
         capabilities = self.home / "capabilities"
         capabilities.mkdir()
-        (capabilities / "manifest.json").write_text(
+        (capabilities / "manifest-v2.json").write_text(
             json.dumps(
                 {
                     "plugins": {
@@ -113,6 +113,17 @@ class PublicEntryTests(unittest.TestCase):
                 "working_directory",
             },
         )
+
+    def test_legacy_only_cloud_command_dispatches_the_managed_installation(self):
+        capabilities = self.home / "capabilities"
+        (capabilities / "manifest-v2.json").rename(capabilities / "manifest.json")
+        result = self.invoke(["todo", "task", "get"])
+        self.assertEqual(result.returncode, 0, result.stderr)
+        self.assertEqual(json.loads(result.stdout), {"result": "business-result"})
+        self.assertEqual(len(self.calls), 1)
+        self.assertEqual(self.calls[0][1]["installed_plugin_id"], 41)
+        self.assertEqual(self.calls[0][1]["args"], ["todo", "task", "get"])
+        self.assertFalse((self.home / ".dws").exists())
 
     def test_cloud_failures_never_start_local_install_or_login(self):
         self.status = 400

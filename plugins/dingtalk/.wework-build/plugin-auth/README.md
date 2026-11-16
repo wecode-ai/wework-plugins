@@ -13,6 +13,8 @@ title: Python 插件账号认证 SDK
 SDK 根据宿主 capabilities 清单中的 `store_path`、`runtime.codex_link` 和
 `runtime.claude_link` 识别安装身份，支持运行时复制目录。未登记、禁用、非托管
 或映射不唯一的路径不能发起账号代理请求；原生宿主继续校验包哈希与设备权限。
+优先读取 `capabilities/manifest-v2.json`；仅当该文件不存在时，使用旧宿主的
+`manifest.json`（包括 WeWork 0.5.4）。v2 已存在但校验或读取失败时不降级到旧清单。
 
 ## 新插件接入
 
