@@ -38,13 +38,13 @@
     "plugin-auth/templates/auth_provider.py.tmpl": "11ed9b480458c2aa5ede47bb11a2ab5579ba249cf26303a2a073da4eda5da497",
     "plugin-auth/templates/cli.py.tmpl": "55c607be225c4b84583e1fcd19e1f374e53fce25799cb0826a7fb3905a38c863",
     "plugin-auth/templates/oauth-provider.inc": "bb72f261c81cadcc002db2d6001a5de01c829fbf6dd855fef3da2ab203d207a2",
-    "plugin-auth/tests/test_runtime.py": "f041ed94bf045ef6894ca04d915f07c5b4ffff768bf6b703af106cedcc9a02d9",
+    "plugin-auth/tests/test_runtime.py": "ab25b4cb2fefec3a913e73a61283bca99741b4479a8a1c5a7391029871b1784b",
     "plugin-auth/tests/test_sdk.py": "e7c7ec429aeeddca7e487d143017b3eff7b26c3e602a3881510e60c9561e6ced",
     "plugin-auth/tool.py": "d6d07a370ffd9a120b1a72ae08ba3cde8cc2b765bbdd59bc54943c6980e5cfa0",
     "plugin-auth/wegent_plugin_auth/__init__.py": "b6ce9a286c0a06ecfe0652d5045e488eba98bcc2aad41f5ebd50e4b3aa28c98c",
     "plugin-auth/wegent_plugin_auth/adapter.py": "c51549ca0e1503f6d714a52bdf6ddc265e4067aa8d4470e5c6c9077d10f5d8e6",
     "plugin-auth/wegent_plugin_auth/configuration.py": "0bb293d2c82db21c5eb19a88cea884fa758700c4350e93baa238b87c5d5e08ae",
-    "plugin-auth/wegent_plugin_auth/runtime.py": "3fbe06a3334acf36fe9687cc9dfbdc802d804982b51ddf064880ec68e3adc84d",
+    "plugin-auth/wegent_plugin_auth/runtime.py": "eab7a91fe7f4ddb4b3175a8614b97db9c847688c69a1583b4a5e17d0737503f6",
     "plugin-auth/wegent_plugin_auth/transport.py": "664e4a848c9fea879f729a967191c37d7ab02a0180c0f02bced4cd62c4199c34"
   }
 }

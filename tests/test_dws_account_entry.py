@@ -23,7 +23,7 @@ class PublicEntryTests(unittest.TestCase):
         self.home = Path(self.temporary.name)
         capabilities = self.home / "capabilities"
         capabilities.mkdir()
-        (capabilities / "manifest.json").write_text(
+        (capabilities / "manifest-v2.json").write_text(
             json.dumps(
                 {
                     "plugins": {

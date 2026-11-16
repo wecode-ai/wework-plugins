@@ -118,7 +118,7 @@ class RuntimeTests(unittest.TestCase):
             home = Path(directory)
             capabilities = home / "executor/capabilities"
             capabilities.mkdir(parents=True)
-            (capabilities / "manifest.json").write_text(
+            (capabilities / "manifest-v2.json").write_text(
                 json.dumps(
                     {
                         "plugins": {
