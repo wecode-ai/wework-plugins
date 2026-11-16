@@ -2,6 +2,9 @@
 
 通过原生 Lark CLI 使用文档、消息、日历、审批等能力，支持 Wegent 本地登录与云端托管认证。
 
+0.2.1 包含云端授权能力清单读取修复：优先读取 `manifest-v2.json`，保留旧宿主
+`manifest.json` 支持及现有本地登录流程。发布校验见[仓库清单](../../README.md#cloud-authentication-fix-versions)。
+
 ## 连接与身份
 
 - **飞书用户（lark）**：在来源设备完成原生浏览器授权。Wegent 接管 OAuth 刷新权后，本地和云端调用都使用托管连接，不需要在云端再次扫码。交接只删除所选账户的本地用户令牌，不调用会撤销服务端授权的 CLI logout。

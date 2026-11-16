@@ -3,6 +3,9 @@
 该插件将 DingTalk Workspace CLI 的完整 DWS 单体技能资料适配为
 Wegent/WeWork 可发布的 Codex 插件。
 
+0.3.5 包含云端授权能力清单读取修复：优先读取 `manifest-v2.json`，保留旧宿主
+`manifest.json` 支持及现有本地登录流程。发布校验见[仓库清单](../../README.md#cloud-authentication-fix-versions)。
+
 ## 运行方式
 
 - 插件不配置 Wegent Backend Connector，也不把用户 Token 存到服务端。

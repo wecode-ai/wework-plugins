@@ -49,7 +49,7 @@ PowerShell script and runs the native Windows authorization/exit-code tests on
 
 ## DingTalk builds
 
-DingTalk 0.3.4 declares its build in `plugins/dingtalk/.wework-build.json` and keeps
+DingTalk 0.3.5 declares its build in `plugins/dingtalk/.wework-build.json` and keeps
 all reviewed build inputs inside `.wework-build/` in that plugin directory.
 GitHub-to-internal-repository mirroring therefore retains everything needed by
 the existing MR, package, test and automatic-release pipeline. No separate
@@ -74,6 +74,32 @@ unconditional auto-upgrade for 0.3.3 users: retire any existing exclusive cloud
 connection while the old definition is still installed, then restore local login
 and install the new plugin. Do not delete handoff receipts or silently leave the
 old cloud refresh owner running. See the [design and release gates](docs/dingtalk-auth-wework-0.5.4-design.md).
+
+## Cloud authentication fix versions
+
+The capability manifest fix from [PR #13](https://github.com/wecode-ai/wework-plugins/pull/13)
+is included in the following plugin versions:
+
+| Plugin | Previous version | Fix version |
+| --- | --- | --- |
+| DingTalk | 0.3.4 | 0.3.5 |
+| WeCom | 0.2.0 | 0.2.1 |
+| Lark | 0.2.0 | 0.2.1 |
+
+These versions prefer `capabilities/manifest-v2.json` and retain support for
+older hosts that only provide `manifest.json`. They preserve the existing local
+authentication flow. A merged source change does not confirm marketplace
+publication or installation on a device.
+
+Release checklist:
+
+- Bump each affected plugin's `.codex-plugin/plugin.json` version before publishing.
+- Run the repository compatibility tests, the DingTalk SDK and package assembly
+  tests, and the Lark and WeCom routing tests.
+- Validate the three manifests and the DingTalk build source inventory.
+- Confirm the packaging workflows pass and the marketplace lists the new versions.
+- After installation, confirm the device reports the new version; verify local
+  authentication and real cloud execution separately.
 
 ## Adding a plugin
 
