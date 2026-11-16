@@ -49,7 +49,7 @@ PowerShell script and runs the native Windows authorization/exit-code tests on
 
 ## DingTalk builds
 
-DingTalk 0.3.5 declares its build in `plugins/dingtalk/.wework-build.json` and keeps
+DingTalk 0.3.6 declares its build in `plugins/dingtalk/.wework-build.json` and keeps
 all reviewed build inputs inside `.wework-build/` in that plugin directory.
 GitHub-to-internal-repository mirroring therefore retains everything needed by
 the existing MR, package, test and automatic-release pipeline. No separate
@@ -67,6 +67,17 @@ The builder prepares pinned Go tools, preserves reviewed source, builds five nat
 targets and exercises the private adapter. The ordinary official publishing command
 automatically runs this build; GitLab tests and releases the same resulting ZIP.
 The GitHub workflow remains an additional cross-platform build check.
+
+0.3.6 presents one DingTalk authorization entry. Its existing `dingtalk-access`
+connector now declares both local browser login and access-only snapshot export.
+The account-authentication definition and DWS storage configuration remain unchanged
+from 0.3.5, so existing account connections and local logins retain their identity.
+Successful local login uses the host's existing account lifecycle to request a new
+cloud snapshot. Refresh credentials remain local. Explicit logout now disconnects
+the account before removing local login; merely closing WeWork does not revoke a
+snapshot. Automatic install-time login for this combined connector requires a host
+that includes local-auth account connectors in its install authorization policy;
+older hosts can still use the plugin's manual login entry.
 
 0.3.4 keeps local DWS as the sole refresh owner and syncs access-only snapshots
 through WeWork 0.5.4. It does not require a new desktop release. This is not an

@@ -31,13 +31,19 @@ class PackagedPluginTests(unittest.TestCase):
         manifest = json.loads(
             (ROOT / ".codex-plugin/plugin.json").read_text(encoding="utf-8")
         )
-        connector = next(c for c in manifest["connectors"] if c["slug"] == "dingtalk-access")
+        self.assertEqual(len(manifest["connectors"]), 1)
+        connector = manifest["connectors"][0]
+        self.assertEqual(connector["slug"], "dingtalk-access")
+        self.assertEqual(connector["authPolicy"], "on_install")
+        self.assertEqual(connector["displayName"], "钉钉")
         self.assertEqual(connector["accountAuth"]["credentialType"], "bearer")
         self.assertNotIn("exportMode", connector["accountAuth"])
         self.assertNotIn("oauth2", connector["accountAuth"])
-        local = next(c for c in manifest["connectors"] if c["slug"] == "dingtalk-local")
-        self.assertIn("localAuth", local)
-        self.assertNotIn("accountAuth", local)
+        self.assertEqual(connector["localAuth"]["kind"], "browser_oauth")
+        self.assertEqual(
+            connector["localAuth"]["health"], ["scripts/local-auth.sh", "health"]
+        )
+        self.assertFalse(connector["localAuth"]["logoutOnUninstall"])
         self.assertEqual(connector["accountAuth"]["adapter"], "scripts/account-auth.py")
 
 

@@ -8,7 +8,7 @@ from pathlib import Path
 
 ROOT = Path(__file__).resolve().parents[1]
 COMPONENTS = ("plugin-auth", "plugin-auth-go", "dws-auth")
-SUFFIXES = {".py", ".go", ".md", ".tmpl", ".inc"}
+SUFFIXES = {".py", ".go", ".json", ".md", ".tmpl", ".inc"}
 INVENTORY = "account-auth-build.json"
 
 
@@ -53,7 +53,9 @@ def bundle(repository: Path, *, check: bool = False) -> None:
         if actual != set(files) or any(
             (target / name).read_bytes() != content for name, content in files.items()
         ):
-            raise ValueError("Vendored build sources differ from the reviewed inventory")
+            raise ValueError(
+                "Vendored build sources differ from the reviewed inventory"
+            )
         return
     if actual - set(files):
         raise ValueError("Build support destination contains unexpected files")

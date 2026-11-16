@@ -1,6 +1,6 @@
 {
   "name": "dingtalk",
-  "version": "0.3.5",
+  "version": "0.3.6",
   "description": "通过 DWS 使用钉钉协作与办公能力。",
   "author": {
     "name": "Wegent"
@@ -18,7 +18,9 @@
   "skills": "./skills/",
   "connectors": [
     {
-      "slug": "dingtalk-local",
+      "slug": "dingtalk-access",
+      "displayName": "钉钉",
+      "description": "本机登录一次，自动同步短期访问凭据供云端使用。",
       "authPolicy": "on_install",
       "localAuth": {
         "kind": "browser_oauth",
@@ -40,11 +42,7 @@
           "id": "dws",
           "source": "bundled"
         }
-      }
-    },
-    {
-      "slug": "dingtalk-access",
-      "authPolicy": "optional",
+      },
       "accountAuth": {
         "protocolVersion": 1,
         "credentialType": "bearer",

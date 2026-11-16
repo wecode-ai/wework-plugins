@@ -17,6 +17,28 @@ import verify
 
 
 class PackageTests(unittest.TestCase):
+    def test_single_login_upgrade_preserves_existing_035_authentication(self):
+        previous = json.loads(
+            (Path(__file__).parent / "fixtures/authorization-0.3.5.json").read_text(
+                encoding="utf-8"
+            )
+        )
+        current = json.loads(
+            (package.ROOT.parent.parent / ".codex-plugin/plugin.json").read_text(
+                encoding="utf-8"
+            )
+        )
+        self.assertEqual(len(current["connectors"]), 1)
+        connector = current["connectors"][0]
+        old_connectors = {item["slug"]: item for item in previous["connectors"]}
+        self.assertEqual(connector["slug"], "dingtalk-access")
+        self.assertEqual(
+            connector["accountAuth"], old_connectors["dingtalk-access"]["accountAuth"]
+        )
+        self.assertEqual(
+            connector["localAuth"], old_connectors["dingtalk-local"]["localAuth"]
+        )
+
     def setUp(self):
         self.temporary = tempfile.TemporaryDirectory()
         self.addCleanup(self.temporary.cleanup)
@@ -31,9 +53,15 @@ class PackageTests(unittest.TestCase):
                     "name": "dingtalk",
                     "description": "钉钉认证打包",
                     "connectors": [
-                        {"slug": "dingtalk-local", "localAuth": {"kind": "browser_oauth"}},
-                        {"slug": "dingtalk-access", "authPolicy": "optional",
-                         "accountAuth": {"credentialType": "bearer", "adapter": "scripts/account-auth.py"}}
+                        {
+                            "slug": "dingtalk-access",
+                            "authPolicy": "on_install",
+                            "localAuth": {"kind": "browser_oauth"},
+                            "accountAuth": {
+                                "credentialType": "bearer",
+                                "adapter": "scripts/account-auth.py",
+                            },
+                        }
                     ],
                 },
                 ensure_ascii=False,
@@ -88,7 +116,11 @@ class PackageTests(unittest.TestCase):
             )
             manifest = json.loads(archive.read(".codex-plugin/plugin.json"))
             self.assertEqual(
-                manifest["connectors"][1]["accountAuth"]["credentialType"], "bearer"
+                manifest["connectors"][0]["accountAuth"]["credentialType"], "bearer"
+            )
+            self.assertEqual(len(manifest["connectors"]), 1)
+            self.assertEqual(
+                manifest["connectors"][0]["localAuth"], {"kind": "browser_oauth"}
             )
             for target in package.TARGETS:
                 prefix = "scripts/native/" + target.replace("/", "-") + "/"
@@ -112,20 +144,27 @@ class PackageTests(unittest.TestCase):
             manifest = json.loads(archive.read(".codex-plugin/plugin.json"))
             self.assertEqual(manifest["description"], "钉钉认证打包")
 
-    def test_exclusive_or_login_coupled_manifest_is_rejected_before_build(self):
+    def test_renewable_or_split_auth_manifest_is_rejected_before_build(self):
         original = json.loads(self.manifest.read_text(encoding="utf-8"))
-        for variant in ("exclusive", "oauth2", "coupled"):
+        for variant in ("exclusive", "oauth2", "split", "missing_login", "optional"):
             manifest = json.loads(json.dumps(original))
-            snapshot = manifest["connectors"][1]["accountAuth"]
+            connector = manifest["connectors"][0]
+            snapshot = connector["accountAuth"]
             if variant == "exclusive":
                 snapshot["exportMode"] = "exclusive"
             elif variant == "oauth2":
                 snapshot["oauth2"] = ["refresh"]
+            elif variant == "split":
+                manifest["connectors"].append(
+                    {"slug": "dingtalk-local", "localAuth": connector.pop("localAuth")}
+                )
+            elif variant == "missing_login":
+                connector.pop("localAuth")
             else:
-                manifest["connectors"][0]["accountAuth"] = snapshot
+                connector["authPolicy"] = "optional"
             self.manifest.write_text(json.dumps(manifest), encoding="utf-8")
             with patch.object(package.subprocess, "run") as build:
-                with self.assertRaisesRegex(ValueError, "separate local login"):
+                with self.assertRaisesRegex(ValueError, "combine one local login"):
                     package.assemble(self.plugin, self.output, None)
             build.assert_not_called()
 
@@ -136,7 +175,7 @@ class PackageTests(unittest.TestCase):
             return read_text(path, *args, **{"encoding": "cp1252", **kwargs})
 
         with patch.object(Path, "read_text", autospec=True, side_effect=legacy_read):
-            self.test_exclusive_or_login_coupled_manifest_is_rejected_before_build()
+            self.test_renewable_or_split_auth_manifest_is_rejected_before_build()
 
     def test_symlinks_are_rejected_without_following_the_target(self):
         (self.plugin / "scripts/external").symlink_to(
@@ -228,7 +267,9 @@ class VerificationStateTests(unittest.TestCase):
                 (home / ".cache/rosetta/state").write_bytes(b"synthetic")
             elif state == "provider":
                 (home / ".dws").mkdir(exist_ok=True)
-            accepted = connector == "dingtalk-access" and "refresh_token" not in credential
+            accepted = (
+                connector == "dingtalk-access" and "refresh_token" not in credential
+            )
             payload = {
                 "authenticated": True,
                 "accountId": "synthetic-corp:synthetic-user",
