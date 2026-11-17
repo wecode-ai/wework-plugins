@@ -8,10 +8,12 @@ sidebar_position: 1
 `f6b2dcf16b34492d7be25ce63fc81c7155d6a857af21c0604ae16bf4fa96f1e2`。
 共享私有通道来自 `../plugin-auth-go`，保留其 nonce、帧校验及秘密输出隔离。
 
-## 认证边界（0.3.4）
+## 认证边界（0.3.6）
 
-- `dingtalk-local` 只有本地浏览器登录，正常业务直接调用本地 DWS，不依赖 Broker。
-- `dingtalk-access` 是可选 bearer 连接，只通过私有通道导出访问快照，无第二次 OAuth。
+- 只保留 `dingtalk-access`，同时声明本地浏览器登录和 bearer 快照导出，页面显示“钉钉”。
+  正常本地业务直接调用 DWS，不依赖 Broker；登录完成通过宿主现有账号生命周期触发同步。
+- 保留 0.3.5 的连接标识、`accountAuth` 定义、本地登录脚本及存储配置，避免升级重建账号或授权。
+  云端只通过私有通道取得访问快照，无第二次 OAuth。
 - 不声明 `exportMode` 或 `oauth2`，不注册 detach、refresh、revoke。
 - 唯一白名单为 token、expires_at、corp_id、user_id、source、client_id。
   不序列化完整 TokenData，refresh token、persistent code 等永不上传。
@@ -57,9 +59,11 @@ Windows Python 启动器必须等待子进程并传播退出码，不能改回 o
 否则旧刷新所有者可能残留，且新版本无法代替旧定义完成撤销。不得删除回执假装恢复。
 本地仍有凭据的 0.2.9 用户无需第二次 OAuth。
 
-本地退出不等于云端快照立即失效；停止云端使用需断开云端连接，离线时只能保证
-快照到期后不可使用。已断开的连接不会被普通周期导出重新启用。
+统一入口退出登录时，宿主先断开账号连接，再删除本地登录；账号撤销失败时不执行
+本地删除。仅关闭 WeWork 不等于退出，已同步快照仍可能使用到过期。
+已断开的连接不会被普通周期导出重新启用。
 
 插件根目录 `.wework-build.json` 继续接入现有 package/test/release 流程；
-本次未修改 WeWork 源码，也不自动提交、发布或操作真实连接。
+首次安装自动登录需要宿主安装规则支持同时含 `localAuth` 和 `accountAuth` 的连接器；
+旧宿主仍可使用手动登录入口。不自动提交、发布或操作真实连接。
 合成测试和交叉编译不代替 WeWork 0.5.4 真机 UI、系统钥匙串、周期同步及真实云端验收。

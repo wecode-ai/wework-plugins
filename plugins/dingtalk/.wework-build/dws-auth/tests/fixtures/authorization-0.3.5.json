@@ -1,0 +1,54 @@
+{
+  "version": "0.3.5",
+  "sourceCommit": "3f9e664f0af7fb294981d2d2ca23550595fe7ce3",
+  "connectors": [
+    {
+      "slug": "dingtalk-local",
+      "authPolicy": "on_install",
+      "localAuth": {
+        "kind": "browser_oauth",
+        "health": [
+          "scripts/local-auth.sh",
+          "health"
+        ],
+        "start": [
+          "scripts/local-auth.sh",
+          "login"
+        ],
+        "logout": [
+          "scripts/local-auth.sh",
+          "logout"
+        ],
+        "timeoutSeconds": 300,
+        "logoutOnUninstall": false,
+        "tool": {
+          "id": "dws",
+          "source": "bundled"
+        }
+      }
+    },
+    {
+      "slug": "dingtalk-access",
+      "authPolicy": "optional",
+      "accountAuth": {
+        "protocolVersion": 1,
+        "credentialType": "bearer",
+        "adapter": "scripts/account-auth.py",
+        "localEnvironment": {
+          "DWS_CONFIG_DIR": {
+            "type": "directory"
+          },
+          "DWS_KEYCHAIN_DIR": {
+            "type": "directory"
+          },
+          "DWS_DISABLE_KEYCHAIN": {
+            "type": "enum",
+            "values": [
+              "1"
+            ]
+          }
+        }
+      }
+    }
+  ]
+}
