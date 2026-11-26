@@ -3,6 +3,7 @@
 import json
 import os
 import http.client
+import shlex
 import shutil
 import signal
 import subprocess
@@ -41,16 +42,20 @@ if sys.argv[1:3] == ['auth', 'login']:
         sys.exit(0)
 sys.exit(2)
 """
-BOOTSTRAP = r"""
-import os, subprocess, sys, webbrowser
-from pathlib import Path
-root = Path(os.environ['WEWORK_TEST_BROWSER_ROOT'])
-Path.home = classmethod(lambda cls: root / 'home')
-if Path(sys.argv[0]).name == 'github.py':
-    (root / 'connector.pid').write_text(str(os.getpid()))
-def fake_open(address, *args, **kwargs):
-    return subprocess.run([sys.executable, str(root / 'fake-opener.py'), address], stdin=subprocess.DEVNULL, timeout=2, check=False).returncode == 0
-webbrowser.open = fake_open
+NODE_PRELOAD = r"""
+import cp from 'node:child_process'
+import fs from 'node:fs'
+import path from 'node:path'
+import { syncBuiltinESMExports } from 'node:module'
+const spawn = cp.spawn
+cp.spawn = (command, args, options) => {
+  const child = spawn(command, args, options)
+  if (args.some(arg => arg.endsWith('github.py')) && child.pid) {
+    fs.writeFileSync(path.join(process.env.WEWORK_TEST_BROWSER_ROOT, 'connector.pid'), String(child.pid))
+  }
+  return child
+}
+syncBuiltinESMExports()
 """
 FAKE_OPENER = r"""
 import os, sys
@@ -133,7 +138,7 @@ Add-Type -TypeDefinition $source -OutputAssembly $env:WEWORK_TEST_GH_EXE -Output
         (self.root / "home").mkdir()
         self.fake_script = self.root / "fake-gh.py"
         self.fake_script.write_text(FAKE_GH, encoding="utf-8")
-        (self.root / "sitecustomize.py").write_text(BOOTSTRAP, encoding="utf-8")
+        (self.root / "preload.mjs").write_text(NODE_PRELOAD, encoding="utf-8")
         (self.root / "fake-opener.py").write_text(FAKE_OPENER, encoding="utf-8")
         if os.name == "nt":
             shutil.copyfile(self.executable, self.root / "gh.exe")
@@ -202,7 +207,10 @@ Add-Type -TypeDefinition $source -OutputAssembly $env:WEWORK_TEST_GH_EXE -Output
         environment.update(
             PATH=str(self.root) + os.pathsep + os.environ.get("PATH", ""),
             GH_CONFIG_DIR=str(self.profile),
-            PYTHONPATH=str(self.root),
+            NODE_OPTIONS="--import=" + (self.root / "preload.mjs").as_uri(),
+            BROWSER=shlex.join(
+                [sys.executable, str(self.root / "fake-opener.py"), "%s"]
+            ),
             WEWORK_TEST_BROWSER_ROOT=str(self.root),
             WEWORK_TEST_GH_SCRIPT=str(self.fake_script),
             WEWORK_TEST_PYTHON=sys.executable,
