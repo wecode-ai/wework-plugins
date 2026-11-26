@@ -36,9 +36,16 @@ def powershell_executable() -> Optional[str]:
 
 
 class TestPluginInventory(unittest.TestCase):
-    def test_all_eight_public_plugins_have_valid_manifests(self):
+    def test_registered_public_plugins_have_valid_manifests(self):
         manifests = sorted(PLUGINS_ROOT.glob("*/.codex-plugin/plugin.json"))
-        self.assertEqual(len(manifests), 8)
+        marketplace = json.loads(
+            (REPOSITORY_ROOT / ".agents/plugins/marketplace.json").read_text(encoding="utf-8")
+        )
+        registered = [entry["name"] for entry in marketplace["plugins"]]
+        self.assertEqual(len(registered), len(set(registered)))
+        self.assertEqual(
+            set(registered), {path.parents[1].name for path in manifests}
+        )
         for manifest_path in manifests:
             manifest = json.loads(manifest_path.read_text(encoding="utf-8"))
             self.assertEqual(manifest_path.parents[1].name, manifest["name"])

@@ -1,0 +1,179 @@
+<!doctype html>
+<html lang="zh-CN">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>GitHub（Wework）授权</title>
+  <style>
+    :root { color-scheme: light dark; font-family: system-ui, -apple-system, sans-serif; color: #18181b; background: #f6f6f7; }
+    body { margin: 0; min-height: 100vh; display: grid; place-items: center; }
+    main { box-sizing: border-box; width: min(100% - 32px, 520px); margin: 32px 0; padding: 28px; border: 1px solid #d4d4d8; border-radius: 16px; background: #fff; }
+    .eyebrow { font-size: 12px; color: #71717a; letter-spacing: .08em; }
+    h1 { margin: 10px 0; font-size: 23px; }
+    p { line-height: 1.65; font-size: 14px; }
+    #shared { padding: 12px 14px; border-radius: 10px; background: #f4f4f5; color: #52525b; }
+    .code-row { display: flex; flex-wrap: wrap; align-items: center; justify-content: center; gap: 12px; padding: 16px; border: 1px solid #d4d4d8; border-radius: 10px; background: #f6f6f7; }
+    #code { flex: 1 1 200px; text-align: center; font-size: 32px; font-weight: 650; letter-spacing: .08em; white-space: nowrap; user-select: all; }
+    #copy-feedback { min-height: 20px; margin: 8px 0; font-size: 13px; color: #52525b; }
+    #destination { overflow-wrap: anywhere; color: #52525b; }
+    .actions { display: flex; flex-wrap: wrap; gap: 10px; margin-top: 22px; }
+    button, a { box-sizing: border-box; padding: 11px 15px; border: 1px solid #d4d4d8; border-radius: 8px; font: inherit; font-size: 14px; cursor: pointer; text-decoration: none; }
+    button.primary, a { color: #fff; background: #18181b; border-color: #18181b; }
+    button { background: transparent; color: inherit; }
+    button:disabled { opacity: .55; cursor: default; }
+    :focus-visible { outline: 2px solid #2563eb; outline-offset: 3px; }
+    [hidden] { display: none !important; }
+    #status { min-height: 24px; }
+    footer { margin-top: 22px; font-size: 12px; color: #71717a; }
+    @media (prefers-color-scheme: dark) { :root { color: #f4f4f5; background: #18181b; } main { background: #202023; border-color: #3f3f46; } #shared { background: #2d2d32; color: #d4d4d8; } .code-row { background: #2d2d32; border-color: #3f3f46; } #destination, #copy-feedback { color: #d4d4d8; } button.primary, a { color: #18181b; background: #f4f4f5; border-color: #f4f4f5; } }
+  </style>
+</head>
+<body>
+  <main>
+    <div class="eyebrow">WEWORK · 本机连接</div>
+    <h1 id="title">GitHub（Wework）</h1>
+    <p id="description">正在准备本机授权页…</p>
+    <p id="shared"></p>
+    <p id="status" role="status" aria-live="polite"></p>
+    <p id="countdown"></p>
+    <section id="device" hidden aria-label="GitHub 官方授权">
+      <div class="code-row">
+        <code id="code" tabindex="0" aria-label="GitHub 一次性验证码"></code>
+        <button id="copy-code" type="button" disabled>复制验证码</button>
+      </div>
+      <p id="copy-feedback" role="status" aria-live="polite"></p>
+      <p>仅在 GitHub 官方页面输入上面的验证码，不要发送到对话中。</p>
+      <p id="destination"></p>
+      <a id="authorize" target="_blank" rel="noopener noreferrer">打开 GitHub 官方授权页</a>
+    </section>
+    <div class="actions">
+      <button id="confirm" class="primary" disabled>继续</button>
+      <button id="cancel" disabled>取消</button>
+    </div>
+    <footer>验证码仅在本机页面显示；凭据由 GitHub CLI 管理。</footer>
+  </main>
+  <script>
+    (() => {
+      'use strict'
+      const root = location.pathname
+      const byId = id => document.getElementById(id)
+      let csrfToken = null
+      let done = false
+      let busy = false
+      let activeAction = 'login'
+      let currentCode = ''
+      let copying = false
+      function setText(id, text) {
+        const element = byId(id)
+        // Replacing text nodes on every heartbeat clears the user's selection.
+        if (element.textContent !== text) element.textContent = text
+      }
+      async function post(action) {
+        if (!csrfToken || (done && action !== 'ack')) return
+        const response = await fetch(root + action, {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ csrfToken }),
+          cache: 'no-store',
+          credentials: 'omit',
+        })
+        if (!response.ok && response.status !== 409) throw new Error('request failed')
+      }
+      function render(state) {
+        csrfToken = state.csrfToken
+        done = state.done
+        activeAction = state.action
+        setText('title', state.title)
+        setText('description', state.description)
+        setText('shared', state.logoutDescription)
+        setText('status', state.started && activeAction === 'logout' && !done
+          ? '退出已开始，正在核对实际结果。关闭页面不能保证撤回已执行的退出。'
+          : state.hint || '')
+        setText('confirm', activeAction === 'logout' ? '确认退出共享账号' : '登录 GitHub')
+        byId('confirm').hidden = state.started || done
+        byId('confirm').disabled = busy || done || state.started
+        byId('cancel').disabled = done
+        setText('cancel', state.started && activeAction === 'logout' ? '关闭此页' : '取消')
+        setText('countdown', !state.started && !done ? '请在 ' + state.secondsRemaining + ' 秒内确认；到期不会修改账号。' : '')
+        const hasCode = Boolean(!done && state.status === 'waiting_browser' && state.userCode && state.verificationUrl)
+        byId('device').hidden = !hasCode
+        const nextCode = hasCode ? state.userCode : ''
+        if (currentCode !== nextCode) {
+          currentCode = nextCode
+          setText('code', currentCode)
+          setText('copy-code', '复制验证码')
+          setText('copy-feedback', '')
+        }
+        byId('copy-code').disabled = !hasCode || copying
+        setText('destination', hasCode ? state.verificationUrl : '')
+        if (hasCode) {
+          if (byId('authorize').getAttribute('href') !== state.verificationUrl) byId('authorize').href = state.verificationUrl
+        } else byId('authorize').removeAttribute('href')
+      }
+      async function poll() {
+        try {
+          const response = await fetch(root + 'state', { cache: 'no-store', credentials: 'omit' })
+          if (!response.ok) throw new Error('request failed')
+          render(await response.json())
+          if (done) await post('ack')
+          else setTimeout(poll, 250)
+        } catch {
+          byId('confirm').disabled = true
+          byId('cancel').disabled = true
+          byId('device').hidden = true
+          currentCode = ''
+          byId('copy-code').disabled = true
+          setText('code', '')
+          setText('copy-feedback', '')
+          setText('status', '本机连接已关闭。若刚完成账号操作，请回到 Wework 刷新连接状态。')
+        }
+      }
+      byId('copy-code').addEventListener('click', async () => {
+        if (!currentCode || copying || done) return
+        const code = currentCode
+        copying = true
+        byId('copy-code').disabled = true
+        setText('copy-code', '复制中…')
+        setText('copy-feedback', '')
+        try {
+          await navigator.clipboard.writeText(code)
+          if (currentCode !== code || done) return
+          setText('copy-code', '已复制')
+          setText('copy-feedback', '已复制到剪贴板，可前往 GitHub 粘贴。')
+        } catch {
+          if (currentCode !== code || done) return
+          setText('copy-code', '复制验证码')
+          const element = byId('code')
+          element.focus()
+          const selection = window.getSelection()
+          selection.removeAllRanges()
+          selection.selectAllChildren(element)
+          setText('copy-feedback', '无法自动复制，已选中验证码。请按 Ctrl+C（Mac：⌘C）复制。')
+        } finally {
+          copying = false
+          byId('copy-code').disabled = !currentCode || done
+        }
+      })
+      byId('confirm').addEventListener('click', async () => {
+        busy = true
+        byId('confirm').disabled = true
+        try { await post('confirm') } catch { byId('status').textContent = '无法提交确认，请重新打开连接页。' }
+        busy = false
+      })
+      byId('cancel').addEventListener('click', async () => {
+        if (activeAction === 'logout' && byId('confirm').hidden) {
+          try { await post('cancel') } catch {}
+          window.close()
+          return
+        }
+        try { await post('cancel') } catch { byId('status').textContent = '正在停止此次操作，请返回 Wework 检查状态。' }
+      })
+      addEventListener('pagehide', () => {
+        if (!csrfToken || done) return
+        navigator.sendBeacon(root + 'cancel', new Blob([JSON.stringify({ csrfToken })], { type: 'application/json' }))
+      })
+      poll()
+    })()
+  </script>
+</body>
+</html>

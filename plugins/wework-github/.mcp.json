@@ -1,0 +1,34 @@
+{
+  "mcpServers": {
+    "wework_github": {
+      "type": "stdio",
+      "command": "node",
+      "args": [
+        "./scripts/mcp-launcher.mjs"
+      ],
+      "env_vars": [
+        "GH_TOKEN",
+        "GITHUB_TOKEN",
+        "GH_CONFIG_DIR",
+        "XDG_CONFIG_HOME",
+        "APPDATA",
+        "BROWSER",
+        "DISPLAY",
+        "WAYLAND_DISPLAY",
+        "XDG_RUNTIME_DIR",
+        "DBUS_SESSION_BUS_ADDRESS",
+        "XDG_CURRENT_DESKTOP",
+        "XDG_SESSION_TYPE",
+        "HTTP_PROXY",
+        "HTTPS_PROXY",
+        "ALL_PROXY",
+        "NO_PROXY",
+        "http_proxy",
+        "https_proxy",
+        "all_proxy",
+        "no_proxy"
+      ],
+      "cwd": "."
+    }
+  }
+}

@@ -1,0 +1,4 @@
+#!/bin/sh
+set -eu
+SCRIPT_DIRECTORY="$(CDPATH= cd -- "$(dirname -- "$0")" && pwd)"
+exec node "${SCRIPT_DIRECTORY}/mcp-launcher.mjs" "$@"

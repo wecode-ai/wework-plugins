@@ -22,6 +22,7 @@ plugins/<name>/                    # one plugin per directory
 - `product-design`: Product design exploration, audits, and interactive prototyping.
 - `spreadsheets`: Create, inspect, edit, render, and validate XLSX workbooks.
 - `wecom`: WeCom collaboration through the official local CLI.
+- `wework-github`: Local MCP tools for repositories, issues, pull requests, and Actions with GitHub CLI authorization. The plugin opens its own account-management page in the execution device's browser; no custom OAuth app, Client ID, or native host authorization card is required. See the [authentication guide](plugins/wework-github/README.md).
 
 ## Local artifact runtime
 
@@ -31,8 +32,8 @@ LibreOffice and Poppler are optional host-provided native tools used for PDF con
 
 ## Windows compatibility
 
-All eight plugins are covered by repository-level Windows compatibility tests.
-DingTalk, Lark, and WeCom ship PowerShell launchers that preserve native exit
+All public plugins are covered by repository-level Windows compatibility tests.
+DingTalk, Lark, WeCom, and GitHub ship PowerShell launchers that preserve native exit
 codes even when Windows PowerShell 5.1 converts normal CLI stderr into error
 records. Python-based skills document the Windows `py -3` launcher, and
 reference commands avoid hard-coded POSIX temporary paths and heredocs.
