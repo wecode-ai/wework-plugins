@@ -52,6 +52,6 @@ python3 -m unittest discover -s tests -v
 
 0.2.0 将 0.1.x 的三个 MCP 账号管理工具迁到 Wework 官方认证连接，更新安装后需重新加载插件运行时。已有 gh 凭据保留。单独手工排障仍可运行 `scripts/local-auth.sh login` 或 `logout`，这两个命令使用本机页，不是模型工具，也不是 Wework 声明的认证入口。
 
-真实 GitHub 授权、Windows 原生浏览器体验及宿主对用户所选 MCP 的路由需在目标环境验证。详情见 [认证架构](docs/auth-architecture.md)。本次 PR 只包含 GitHub，Figma 不在交付范围。
+2026-11-26 已在 macOS Wework 官方入口完成真实授权、MCP 身份与仓库查询、再次退出及刷新后健康状态核对；取消和提供方拒绝也已验证，见 [真实端到端验收记录](docs/e2e-verification.md)。Windows 原生浏览器及其他执行环境仍需复验。认证细节见 [认证架构](docs/auth-architecture.md)。本次 PR 只包含 GitHub，Figma 不在交付范围。
 
 工作流参考 [openai/plugins 的 github 插件](https://github.com/openai/plugins/tree/0722921d5542fc593105c27bd52630babd8b8c2a/plugins/github)，基线 commit `0722921d5542fc593105c27bd52630babd8b8c2a`、版本 `0.1.12`。本插件移除其 ChatGPT 应用绑定和公共 OAuth 配置，使用自有图标与本仓 Apache-2.0 许可。
