@@ -5,6 +5,17 @@
   },
   "plugins": [
     {
+      "name": "wework-github",
+      "source": {
+        "source": "local",
+        "path": "./plugins/wework-github"
+      },
+      "policy": {
+        "installation": "AVAILABLE"
+      },
+      "category": "开发工具"
+    },
+    {
       "name": "dingtalk",
       "source": {
         "source": "local",

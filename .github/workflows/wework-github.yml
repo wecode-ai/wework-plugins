@@ -1,0 +1,33 @@
+name: Wework GitHub connector
+
+on:
+  pull_request:
+    paths:
+      - 'plugins/wework-github/**'
+      - 'tests/test_wework_github*.py'
+      - '.agents/plugins/marketplace.json'
+      - '.github/workflows/wework-github.yml'
+  push:
+    branches: [main]
+    paths:
+      - 'plugins/wework-github/**'
+      - 'tests/test_wework_github*.py'
+      - '.github/workflows/wework-github.yml'
+
+jobs:
+  connector:
+    strategy:
+      fail-fast: false
+      matrix:
+        os: [ubuntu-latest, macos-latest, windows-latest]
+    runs-on: ${{ matrix.os }}
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+      - name: Test authorization lifecycle, gh transport, tool routes and stdio
+        run: python -m unittest discover -s tests -p "test_wework_github*.py" -v
