@@ -264,7 +264,10 @@ Add-Type -TypeDefinition $source -OutputAssembly $env:WEWORK_TEST_GH_EXE -Output
                 )
             return False
 
-        self.wait_for(opened)
+        # The launcher can spend 2 x 10 seconds probing Python before the
+        # browser's bounded 5-second open. This readiness budget covers both;
+        # an exited launcher still fails immediately with safe diagnostics.
+        self.wait_for(opened, timeout=30)
         record["address"] = urlsplit(
             (self.root / "browser-url").read_text(encoding="utf-8")
         )
@@ -384,7 +387,7 @@ Add-Type -TypeDefinition $source -OutputAssembly $env:WEWORK_TEST_GH_EXE -Output
         ]
         self.wait_for(lambda: all(not self.alive(pid) for pid in pids), timeout=5)
 
-    def finish(self, record, *, code):
+    def finish_transport(self, record, *, code):
         self.assertEqual(record["process"].wait(timeout=6), code)
         for reader in record["readers"]:
             reader.join(timeout=6)
@@ -393,9 +396,6 @@ Add-Type -TypeDefinition $source -OutputAssembly $env:WEWORK_TEST_GH_EXE -Output
             )
         output = bytes(record["stdout"]).decode("utf-8")
         self.assertEqual(bytes(record["stderr"]), b"")
-        self.assertEqual(len(output.splitlines()), 1)
-        result = json.loads(output)
-        self.assertEqual(result["title"], "GitHub（Wework）")
         for secret in (
             "ABCD-1234",
             "github.com/login/device",
@@ -405,6 +405,13 @@ Add-Type -TypeDefinition $source -OutputAssembly $env:WEWORK_TEST_GH_EXE -Output
             record["address"].path.strip("/"),
         ):
             self.assertNotIn(secret, output)
+        return output
+
+    def finish(self, record, *, code):
+        output = self.finish_transport(record, code=code)
+        self.assertEqual(len(output.splitlines()), 1)
+        result = json.loads(output)
+        self.assertEqual(result["title"], "GitHub（Wework）")
         return result
 
     def acknowledge(self, record):
@@ -470,10 +477,29 @@ Add-Type -TypeDefinition $source -OutputAssembly $env:WEWORK_TEST_GH_EXE -Output
         self.confirm(record)
         record["process"].kill()
         expected = 1 if os.name == "nt" else -signal.SIGKILL
-        result = self.finish(record, code=expected)
-        self.assertEqual(
-            result["status"], "cancelled", f"Safe terminal code: {result.get('code')}"
-        )
+        output = self.finish_transport(record, code=expected)
+        # TerminateProcess closes the Windows launcher's inherited transport;
+        # it cannot guarantee delivery of a final child response. Graceful
+        # cancellation above must still deliver exactly one terminal result.
+        if os.name != "nt" or output:
+            self.assertEqual(len(output.splitlines()), 1)
+            result = json.loads(output)
+            self.assertEqual(
+                result["status"],
+                "cancelled",
+                f"Safe terminal code: {result.get('code')}",
+            )
+        connector_pid = int((self.root / "connector.pid").read_text(encoding="utf-8"))
+        self.wait_for(lambda: not self.alive(connector_pid), timeout=5)
+        self.assert_auth_children_stopped()
+        # A new operation on the same profile proves the killed owner left
+        # neither a live account worker nor a held cross-process auth lock.
+        next_record = self.start(direct_node=True)
+        self.confirm(next_record)
+        self.request(next_record, "cancel", method="POST")
+        self.state_with(next_record, "cancelled")
+        self.acknowledge(next_record)
+        self.assertEqual(self.finish(next_record, code=1)["status"], "cancelled")
         self.assert_auth_children_stopped()
 
 
