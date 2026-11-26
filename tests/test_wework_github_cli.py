@@ -33,7 +33,9 @@ elif mode == 'fail':
 elif mode == 'empty':
     pass
 elif mode == 'logs':
-    sys.stdout.write('line one\nline two\n')
+    sys.stdout.buffer.write(b'line one\nline two\n')
+elif mode == 'logs_crlf':
+    sys.stdout.buffer.write(b'line one\r\nline two\r\n')
 else:
     args = sys.argv[1:]
     body = sys.stdin.read() if '--input' in args else None
@@ -171,6 +173,11 @@ class GitHubCliTests(unittest.TestCase):
         self.assertEqual(
             self.client.job_logs("/repos/octo/demo/actions/jobs/3/logs"),
             "line one\nline two\n",
+        )
+        self.mode("logs_crlf")
+        self.assertEqual(
+            self.client.job_logs("/repos/octo/demo/actions/jobs/3/logs"),
+            "line one\r\nline two\r\n",
         )
         with mock.patch.object(cli, "_run", return_value=b"log") as run:
             self.client.job_logs("/repos/octo/demo/actions/jobs/3/logs")

@@ -25,12 +25,19 @@ const environment = {
   PYTHONIOENCODING: 'utf-8',
   PYTHONDONTWRITEBYTECODE: '1',
 }
-const selected = candidates.find(([command, prefix]) => {
-  const probe = spawnSync(command, [...prefix, '-c', 'import sys; sys.exit(0 if sys.version_info >= (3, 10) else 1)'], {
+let selected
+for (const [command, prefix] of candidates) {
+  const probe = spawnSync(command, [...prefix, '-c', 'import sys; sys.exit(1) if sys.version_info < (3, 10) else sys.stdout.write(sys.executable)'], {
     stdio: 'pipe', windowsHide: true, timeout: 10000, env: environment,
   })
-  return !probe.error && probe.status === 0
-})
+  const executable = probe.stdout?.toString('utf8').trim()
+  if (!probe.error && probe.status === 0 && executable) {
+    // Spawn Python itself: a py launcher intermediary can own/close the streams
+    // before the connector has finished cancelling its authorization workers.
+    selected = [executable, []]
+    break
+  }
+}
 if (!selected) {
   fail('wework-github requires Python 3.10 or newer on the execution device.', 'local_auth_runtime_missing')
 } else launch(selected)

@@ -7,6 +7,7 @@ import io
 import json
 import os
 import shlex
+import signal
 import socket
 import subprocess
 import sys
@@ -447,6 +448,22 @@ class BrowserAuthTests(unittest.TestCase):
                 browser.start(login=flow, parent=parent)
         self.assertTrue(flow.cleaned.is_set())
         self.assertTrue(parent.closed)
+
+    def test_cli_signal_handler_is_installed_before_browser_construction(self):
+        flow, parent = Login(), Parent()
+        previous = signal.getsignal(signal.SIGTERM)
+
+        def interrupt(instance, _opener, _address):
+            self.assertTrue(instance.session.confirm())
+            self.assertTrue(flow.called.wait(1))
+            signal.getsignal(signal.SIGTERM)(signal.SIGTERM, None)
+
+        with mock.patch.object(browser.BrowserSession, "_open", new=interrupt):
+            result = browser.run(login=flow, parent=parent)
+        self.assertEqual(result["status"], "cancelled")
+        self.assertTrue(flow.cleaned.is_set())
+        self.assertTrue(parent.closed)
+        self.assertEqual(signal.getsignal(signal.SIGTERM), previous)
 
     def test_thread_start_failures_close_sockets_without_waiting_for_absent_threads(
         self,

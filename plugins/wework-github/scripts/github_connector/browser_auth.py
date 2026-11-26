@@ -690,17 +690,26 @@ def run(action="login", **kwargs):
     session = None
     handlers = {}
     try:
-        session = start(action, **kwargs)
         if threading.current_thread() is threading.main_thread():
 
             def stop_session(_number, _frame):
+                if session is None:
+                    # __init__ cleans up before this leaves the construction.
+                    raise KeyboardInterrupt
                 session.stop.set()
                 session.session.cancel_before_start()
 
             for signum in (signal.SIGINT, signal.SIGTERM):
                 handlers[signum] = signal.getsignal(signum)
                 signal.signal(signum, stop_session)
+        session = start(action, **kwargs)
         return session.wait()
+    except KeyboardInterrupt:
+        return _failure(
+            "gh_browser_auth_cancelled",
+            "已停止此次账号操作，请检查实际连接状态。",
+            status="cancelled",
+        )
     except GitHubError as error:
         return _failure(error.code, error.message)
     finally:

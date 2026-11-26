@@ -48,12 +48,14 @@ class PackageTests(unittest.TestCase):
         self.assertEqual(event["title"], "GitHub（Wework）")
 
     def test_plugin_identity_and_shared_authorization_contract(self):
-        manifest = json.loads((PLUGIN / ".codex-plugin/plugin.json").read_text())
+        manifest = json.loads(
+            (PLUGIN / ".codex-plugin/plugin.json").read_text(encoding="utf-8")
+        )
         self.assertEqual(manifest["name"], "wework-github")
         self.assertNotIn("apps", manifest)
         self.assertFalse((PLUGIN / ".app.json").exists())
         self.assertNotIn("connectors", manifest)
-        mcp_config = json.loads((PLUGIN / ".mcp.json").read_text())
+        mcp_config = json.loads((PLUGIN / ".mcp.json").read_text(encoding="utf-8"))
         server = mcp_config["mcpServers"]["wework_github"]
         self.assertEqual(
             set(server["env_vars"]),
@@ -102,6 +104,7 @@ class PackageTests(unittest.TestCase):
             [sys.executable, str(ENTRY), "health"],
             capture_output=True,
             text=True,
+            encoding="utf-8",
             check=False,
             env={**os.environ, "PATH": "", "PYTHONIOENCODING": "utf-8"},
             timeout=10,
@@ -187,14 +190,18 @@ class StdioTests(unittest.TestCase):
 
     @unittest.skipUnless(shutil.which("node"), "Node.js is not installed")
     def test_manifest_launcher_from_unrelated_working_directory(self):
-        server = json.loads((PLUGIN / ".mcp.json").read_text())["mcpServers"][
-            "wework_github"
-        ]
+        server = json.loads((PLUGIN / ".mcp.json").read_text(encoding="utf-8"))[
+            "mcpServers"
+        ]["wework_github"]
         self.assertEqual(server["cwd"], ".")
         with tempfile.TemporaryDirectory(prefix="independent workspace ") as workspace:
             installed = Path(workspace) / "installed-plugin"
-            shutil.copytree(PLUGIN, installed, ignore=shutil.ignore_patterns("__pycache__"))
-            self.exercise([server["command"], *server["args"]], installed / server["cwd"])
+            shutil.copytree(
+                PLUGIN, installed, ignore=shutil.ignore_patterns("__pycache__")
+            )
+            self.exercise(
+                [server["command"], *server["args"]], installed / server["cwd"]
+            )
 
     def test_tool_results_and_auth_required_identity_reach_the_client(self):
         client = mock.Mock()

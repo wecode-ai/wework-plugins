@@ -246,7 +246,25 @@ Add-Type -TypeDefinition $source -OutputAssembly $env:WEWORK_TEST_GH_EXE -Output
             record["readers"].append(reader)
         self.processes.append(record)
         self.assertIsNone(process.stdin)
-        self.wait_for(lambda: (self.root / "browser-url").exists())
+
+        def opened():
+            if (self.root / "browser-url").exists():
+                return True
+            if process.poll() is not None:
+                for reader in record["readers"]:
+                    reader.join(timeout=1)
+                try:
+                    terminal = json.loads(bytes(record["stdout"]).decode("utf-8"))
+                except (ValueError, UnicodeError):
+                    terminal = {}
+                self.fail(
+                    f"Launcher exited before opening: returncode={process.returncode}, "
+                    f"status={terminal.get('status')}, code={terminal.get('code')}, "
+                    f"stdoutBytes={len(record['stdout'])}, stderrBytes={len(record['stderr'])}"
+                )
+            return False
+
+        self.wait_for(opened)
         record["address"] = urlsplit(
             (self.root / "browser-url").read_text(encoding="utf-8")
         )
