@@ -121,6 +121,30 @@ class OwnedProcessTests(unittest.TestCase):
         killpg.assert_not_called()
         process.kill.assert_not_called()
 
+    def test_darwin_exiting_group_permission_race_is_bounded_and_retried(self):
+        with (
+            mock.patch.object(owned.sys, "platform", "darwin"),
+            mock.patch.object(owned.os, "killpg", create=True) as killpg,
+            mock.patch.object(owned.time, "sleep") as sleep,
+        ):
+            killpg.side_effect = [PermissionError(), ProcessLookupError()]
+            owned._signal_group(123, 15)
+        self.assertEqual(killpg.call_args_list, [mock.call(123, 15)] * 2)
+        sleep.assert_called_once_with(0.01)
+
+    def test_persistent_group_permission_failure_is_not_ignored(self):
+        with (
+            mock.patch.object(owned.sys, "platform", "darwin"),
+            mock.patch.object(owned.os, "killpg", create=True) as killpg,
+            mock.patch.object(owned.time, "monotonic", side_effect=[0, 0, 1]),
+            mock.patch.object(owned.time, "sleep"),
+        ):
+            killpg.side_effect = PermissionError("PRIVATE_PATH")
+            with self.assertRaises(GitHubError) as caught:
+                owned._signal_group(123, 9)
+        self.assertEqual(killpg.call_args_list, [mock.call(123, 9)] * 2)
+        self.assertNotIn("PRIVATE", caught.exception.message)
+
     def test_windows_suspends_then_attaches_job_before_resume_and_closes_after_leader_exit(
         self,
     ):

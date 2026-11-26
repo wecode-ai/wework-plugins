@@ -48,6 +48,15 @@ import fs from 'node:fs'
 import path from 'node:path'
 import { syncBuiltinESMExports } from 'node:module'
 const spawn = cp.spawn
+const spawnSync = cp.spawnSync
+cp.spawnSync = (command, args, options) => {
+  const result = spawnSync(command, args, options)
+  fs.writeFileSync(path.join(process.env.WEWORK_TEST_BROWSER_ROOT, 'probe.json'), JSON.stringify({
+    command, status: result.status, error: result.error?.code,
+    executable: result.status === 0 ? result.stdout.toString('utf8').trim() : undefined,
+  }))
+  return result
+}
 cp.spawn = (command, args, options) => {
   const child = spawn(command, args, options)
   if (args.some(arg => arg.endsWith('github.py')) && child.pid) {
@@ -275,7 +284,14 @@ Add-Type -TypeDefinition $source -OutputAssembly $env:WEWORK_TEST_GH_EXE -Output
         # The launcher can spend 2 x 10 seconds probing Python before the
         # browser's bounded 5-second open. This readiness budget covers both;
         # an exited launcher still fails immediately with safe diagnostics.
-        self.wait_for(opened, timeout=30)
+        try:
+            self.wait_for(opened, timeout=30)
+        except AssertionError as error:
+            probe = self.root / "probe.json"
+            self.fail(
+                f"{error}; connectorStarted={(self.root / 'connector.pid').exists()}, "
+                f"probe={probe.read_text(encoding='utf-8') if probe.exists() else 'missing'}"
+            )
         record["address"] = urlsplit(
             (self.root / "browser-url").read_text(encoding="utf-8")
         )

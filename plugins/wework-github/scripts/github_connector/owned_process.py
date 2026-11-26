@@ -8,7 +8,9 @@ The process leader may exit before cleanup; its group/job still owns descendants
 import os
 import signal
 import subprocess
+import sys
 import threading
+import time
 
 from .errors import GitHubError
 
@@ -226,6 +228,25 @@ def spawn(arguments, *, popen=None, **kwargs):
         raise _failure() from None
 
 
+def _signal_group(pid, value):
+    deadline = time.monotonic() + _GRACE_SECONDS
+    while True:
+        try:
+            os.killpg(pid, value)
+            return
+        except ProcessLookupError:
+            return
+        except PermissionError:
+            # Darwin can retain an exiting, zombie-only group briefly and
+            # report EPERM until the group disappears. Retry only this owned
+            # group; persistent permission failures must still fail closed.
+            if sys.platform != "darwin" or time.monotonic() >= deadline:
+                raise _failure() from None
+            time.sleep(0.01)
+        except OSError:
+            raise _failure() from None
+
+
 def cleanup(process):
     """Stop the registered tree even if its leader has exited; safe to repeat."""
     with _lock:
@@ -236,12 +257,7 @@ def cleanup(process):
         job.close()  # KILL_ON_JOB_CLOSE also covers descendants after leader exit.
         _reap(process)
         return
-    try:
-        os.killpg(process.pid, signal.SIGTERM)
-    except ProcessLookupError:
-        pass
-    except OSError:
-        raise _failure() from None
+    _signal_group(process.pid, signal.SIGTERM)
     try:
         process.wait(timeout=_GRACE_SECONDS)
     except subprocess.TimeoutExpired:
@@ -249,10 +265,5 @@ def cleanup(process):
     except OSError:
         raise _failure() from None
     # A dead group leader does not mean its descendants have released the pipes.
-    try:
-        os.killpg(process.pid, signal.SIGKILL)
-    except ProcessLookupError:
-        pass
-    except OSError:
-        raise _failure() from None
+    _signal_group(process.pid, signal.SIGKILL)
     _reap(process)
