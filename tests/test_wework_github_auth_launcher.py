@@ -58,8 +58,18 @@ cp.spawnSync = (command, args, options) => {
   return result
 }
 cp.spawn = (command, args, options) => {
+  const connector = args.some(arg => arg.endsWith('github.py'))
+  if (connector) {
+    args = ['-c', `import faulthandler, os, runpy, sys
+trace = open(os.path.join(os.environ['WEWORK_TEST_BROWSER_ROOT'], 'startup-stack'), 'w')
+faulthandler.dump_traceback_later(10, file=trace)
+script = sys.argv[1]
+sys.argv = sys.argv[1:]
+sys.path.insert(0, os.path.dirname(script))
+runpy.run_path(script, run_name='__main__')`, ...args]
+  }
   const child = spawn(command, args, options)
-  if (args.some(arg => arg.endsWith('github.py')) && child.pid) {
+  if (connector && child.pid) {
     fs.writeFileSync(path.join(process.env.WEWORK_TEST_BROWSER_ROOT, 'connector.pid'), String(child.pid))
   }
   return child
@@ -267,6 +277,9 @@ Add-Type -TypeDefinition $source -OutputAssembly $env:WEWORK_TEST_GH_EXE -Output
         def opened():
             if (self.root / "browser-url").exists():
                 return True
+            trace = self.root / "startup-stack"
+            if trace.exists() and trace.stat().st_size:
+                self.fail("Connector startup stack: " + trace.read_text(encoding="utf-8"))
             if process.poll() is not None:
                 for reader in record["readers"]:
                     reader.join(timeout=1)
