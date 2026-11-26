@@ -48,28 +48,9 @@ import fs from 'node:fs'
 import path from 'node:path'
 import { syncBuiltinESMExports } from 'node:module'
 const spawn = cp.spawn
-const spawnSync = cp.spawnSync
-cp.spawnSync = (command, args, options) => {
-  const result = spawnSync(command, args, options)
-  fs.writeFileSync(path.join(process.env.WEWORK_TEST_BROWSER_ROOT, 'probe.json'), JSON.stringify({
-    command, status: result.status, error: result.error?.code,
-    executable: result.status === 0 ? result.stdout.toString('utf8').trim() : undefined,
-  }))
-  return result
-}
 cp.spawn = (command, args, options) => {
-  const connector = args.some(arg => arg.endsWith('github.py'))
-  if (connector) {
-    args = ['-c', `import faulthandler, os, runpy, sys
-trace = open(os.path.join(os.environ['WEWORK_TEST_BROWSER_ROOT'], 'startup-stack'), 'w')
-faulthandler.dump_traceback_later(10, file=trace)
-script = sys.argv[1]
-sys.argv = sys.argv[1:]
-sys.path.insert(0, os.path.dirname(script))
-runpy.run_path(script, run_name='__main__')`, ...args]
-  }
   const child = spawn(command, args, options)
-  if (connector && child.pid) {
+  if (args.some(arg => arg.endsWith('github.py')) && child.pid) {
     fs.writeFileSync(path.join(process.env.WEWORK_TEST_BROWSER_ROOT, 'connector.pid'), String(child.pid))
   }
   return child
@@ -277,9 +258,6 @@ Add-Type -TypeDefinition $source -OutputAssembly $env:WEWORK_TEST_GH_EXE -Output
         def opened():
             if (self.root / "browser-url").exists():
                 return True
-            trace = self.root / "startup-stack"
-            if trace.exists() and trace.stat().st_size:
-                self.fail("Connector startup stack: " + trace.read_text(encoding="utf-8"))
             if process.poll() is not None:
                 for reader in record["readers"]:
                     reader.join(timeout=1)
@@ -297,14 +275,7 @@ Add-Type -TypeDefinition $source -OutputAssembly $env:WEWORK_TEST_GH_EXE -Output
         # The launcher can spend 2 x 10 seconds probing Python before the
         # browser's bounded 5-second open. This readiness budget covers both;
         # an exited launcher still fails immediately with safe diagnostics.
-        try:
-            self.wait_for(opened, timeout=30)
-        except AssertionError as error:
-            probe = self.root / "probe.json"
-            self.fail(
-                f"{error}; connectorStarted={(self.root / 'connector.pid').exists()}, "
-                f"probe={probe.read_text(encoding='utf-8') if probe.exists() else 'missing'}"
-            )
+        self.wait_for(opened, timeout=30)
         record["address"] = urlsplit(
             (self.root / "browser-url").read_text(encoding="utf-8")
         )

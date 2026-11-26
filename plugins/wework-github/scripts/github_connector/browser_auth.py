@@ -18,6 +18,7 @@ import threading
 import time
 import uuid
 from http.server import BaseHTTPRequestHandler, ThreadingHTTPServer
+from socketserver import TCPServer
 from pathlib import Path
 from urllib.parse import urlsplit
 
@@ -318,6 +319,12 @@ class _Server(ThreadingHTTPServer):
     def __init__(self, *args, **kwargs):
         self.slots = threading.BoundedSemaphore(MAX_CONNECTIONS)
         super().__init__(*args, **kwargs)
+
+    def server_bind(self):
+        # HTTPServer performs a potentially unbounded getfqdn() here. This
+        # numeric loopback listener needs no reverse DNS or external network.
+        TCPServer.server_bind(self)
+        self.server_name, self.server_port = self.server_address[:2]
 
     def process_request(self, request, client_address):
         # Do not block the accept loop behind a queue of idle local sockets.

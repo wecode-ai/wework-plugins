@@ -73,6 +73,15 @@ class Login:
 
 
 class BrowserAuthTests(unittest.TestCase):
+    def test_loopback_startup_and_page_requests_do_not_require_reverse_dns(self):
+        with mock.patch.object(
+            socket, "getfqdn", side_effect=AssertionError("DNS must not run")
+        ):
+            self.begin()
+            self.assertEqual(self.session.server.server_name, "127.0.0.1")
+            self.assertEqual(self.session.server.server_port, self.address.port)
+            self.assertEqual(self.state()["status"], "awaiting_confirmation")
+
     def begin(self, action="login", **kwargs):
         self.login = kwargs.pop("login", Login())
         self.parent = kwargs.pop("parent", Parent())
@@ -586,10 +595,10 @@ class BrowserAuthTests(unittest.TestCase):
             with socket.create_connection(
                 ("127.0.0.1", self.address.port), timeout=1
             ) as excess:
-                excess.sendall(b"GET ")
                 try:
+                    excess.sendall(b"GET ")
                     self.assertEqual(excess.recv(1024), b"")
-                except ConnectionResetError:
+                except (ConnectionResetError, ConnectionAbortedError, BrokenPipeError):
                     pass
         finally:
             for connection in connections:
