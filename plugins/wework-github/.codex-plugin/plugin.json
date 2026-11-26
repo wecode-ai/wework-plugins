@@ -1,6 +1,6 @@
 {
   "name": "wework-github",
-  "version": "0.1.2",
+  "version": "0.2.0",
   "description": "复用 GitHub CLI 官方授权，直接管理仓库、Issue、PR 和 Actions。",
   "author": {
     "name": "Wework"
@@ -19,10 +19,28 @@
   ],
   "skills": "./skills/",
   "mcpServers": "./.mcp.json",
+  "connectors": [
+    {
+      "slug": "wework-github-account",
+      "displayName": "GitHub CLI 账号",
+      "description": "通过 Wework 认证连接管理本机 GitHub CLI 账号。登录和退出会影响同一 gh 配置下的其他入口；其他已保存账号会保留。",
+      "authPolicy": "on_use",
+      "localAuth": {
+        "kind": "browser_oauth",
+        "health": ["scripts/local-auth.sh", "health"],
+        "start": ["scripts/local-auth.sh", "connect"],
+        "logout": ["scripts/local-auth.sh", "disconnect"],
+        "statusField": "status",
+        "okValues": ["ok"],
+        "timeoutSeconds": 600,
+        "logoutOnUninstall": false
+      }
+    }
+  ],
   "interface": {
     "displayName": "GitHub（Wework）",
     "shortDescription": "直连 GitHub 的仓库、PR 与 CI 工作流",
-    "longDescription": "插件自带本机浏览器账户页，复用 GitHub CLI 官方授权，无需申请或配置 Client ID。通过 gh api 直连 GitHub，读取仓库与代码、处理 Issue 和 PR、检查 Actions 任务与日志。登录、取消和退出确认由插件处理。登录与退出影响同一执行设备上共享的 gh 活动账号；凭据由 gh 管理。",
+    "longDescription": "接入 Wework 官方本机认证连接，通过标准 localAuth 协议管理连接、健康检查、取消和退出。复用 GitHub CLI 官方授权，无需申请或配置 Client ID；验证码在本机浏览器页展示。通过 gh api 直连 GitHub，读取仓库与代码、处理 Issue 和 PR、检查 Actions。登录与退出影响同一设备同一 gh 配置下的活动账号；凭据由 gh 管理。",
     "developerName": "Wework",
     "category": "Developer Tools",
     "capabilities": [

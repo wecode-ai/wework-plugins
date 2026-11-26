@@ -1,3 +1,3 @@
-"""Wework's GitHub tools with plugin-owned account UI and device gh credentials."""
+"""GitHub tools with Wework localAuth integration and device gh credentials."""
 
-VERSION = "0.1.1"
+VERSION = "0.2.0"

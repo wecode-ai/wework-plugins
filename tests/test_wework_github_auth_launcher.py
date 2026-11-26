@@ -22,7 +22,12 @@ import os, pathlib, subprocess, sys, time
 root = pathlib.Path(os.environ['GH_CONFIG_DIR'])
 if sys.argv[1:3] == ['api', 'user']:
     (root / 'api-seen').touch()
+    if (root / 'fail-health').exists():
+        sys.stderr.write('network PRIVATE_DIAGNOSTIC ghp_FAKE_SECRET\n')
+        sys.exit(1)
     if (root / 'authenticated').exists():
+        if '--silent' not in sys.argv:
+            sys.stdout.write('{"login":"fixture-user"}\n')
         sys.exit(0)
     sys.stderr.write('HTTP 401 PRIVATE_DIAGNOSTIC\n')
     sys.exit(4)
@@ -34,12 +39,25 @@ if sys.argv[1:3] == ['auth', 'login']:
     sys.stderr.write('! First copy your one-time code: ABCD-1234\n')
     sys.stderr.write('Open this URL to continue in your web browser: https://github.com/login/device\n')
     sys.stderr.flush()
+    if (root / 'fail-login').exists():
+        sys.exit(1)
     deadline = time.monotonic() + 30
     while not (root / 'allow-complete').exists() and time.monotonic() < deadline:
         time.sleep(0.02)
     if (root / 'allow-complete').exists():
         (root / 'authenticated').touch()
         sys.exit(0)
+if sys.argv[1:4] == ['config', 'get', 'user']:
+    if (root / 'authenticated').exists():
+        sys.stdout.write('fixture-user\n')
+        sys.exit(0)
+    sys.stderr.write('could not find key "user"\n')
+    sys.exit(1)
+if sys.argv[1:3] == ['auth', 'logout']:
+    if sys.argv[3:] != ['--hostname', 'github.com', '--user', 'fixture-user']:
+        sys.exit(2)
+    (root / 'authenticated').unlink(missing_ok=True)
+    sys.exit(0)
 sys.exit(2)
 """
 NODE_PRELOAD = r"""
@@ -177,7 +195,7 @@ Add-Type -TypeDefinition $source -OutputAssembly $env:WEWORK_TEST_GH_EXE -Output
                 if stream is not None:
                     stream.close()
 
-    def start(self, action="login", *, direct_node=False):
+    def start(self, action="connect", *, direct_node=False):
         for name in ("browser-url", "connector.pid"):
             (self.root / name).unlink(missing_ok=True)
         for name in (
@@ -216,6 +234,8 @@ Add-Type -TypeDefinition $source -OutputAssembly $env:WEWORK_TEST_GH_EXE -Output
             WEWORK_TEST_PYTHON=sys.executable,
         )
         command = [shutil.which("node"), str(LAUNCHER)]
+        if not direct_node:
+            command = ["sh", str(PLUGIN / "scripts/local-auth.sh")]
         if os.name == "nt" and not direct_node:
             command = [
                 self.powershell,
@@ -236,6 +256,8 @@ Add-Type -TypeDefinition $source -OutputAssembly $env:WEWORK_TEST_GH_EXE -Output
         )
         record = {
             "process": process,
+            "command": command,
+            "environment": environment,
             "stdout": bytearray(),
             "stderr": bytearray(),
             "readers": [],
@@ -281,7 +303,7 @@ Add-Type -TypeDefinition $source -OutputAssembly $env:WEWORK_TEST_GH_EXE -Output
         )
         initial = self.state(record)
         self.assertEqual(initial["status"], "awaiting_confirmation")
-        self.assertEqual(initial["action"], action)
+        self.assertEqual(initial["action"], "login" if action == "connect" else action)
         self.assertFalse(initial["started"])
         self.assert_silent(record)
         return record
@@ -470,6 +492,92 @@ Add-Type -TypeDefinition $source -OutputAssembly $env:WEWORK_TEST_GH_EXE -Output
         self.acknowledge(record)
         self.assertEqual(self.finish(record, code=1)["status"], "cancelled")
 
+    def test_native_connect_failure_does_not_report_connected_and_releases_children(
+        self,
+    ):
+        record = self.start()
+        (self.profile / "fail-login").touch()
+        self.assertEqual(self.request(record, "confirm", method="POST")[0], 202)
+        terminal = self.state_with(record, "error")
+        self.assertFalse((self.profile / "authenticated").exists())
+        self.assertEqual(terminal["code"], "gh_login_failed")
+        self.assert_auth_children_stopped()
+        self.acknowledge(record)
+        self.assertEqual(self.finish(record, code=1)["status"], "error")
+
+    def test_native_connection_health_business_and_disconnect_use_the_same_profile(
+        self,
+    ):
+        record = self.start()
+        self.confirm(record)
+        (self.profile / "allow-complete").touch()
+        self.state_with(record, "ok")
+        self.acknowledge(record)
+        self.assertEqual(self.finish(record, code=0)["status"], "ok")
+        request = {
+            "jsonrpc": "2.0",
+            "id": 1,
+            "method": "tools/call",
+            "params": {"name": "get_me"},
+        }
+
+        def identity():
+            result = subprocess.run(
+                [shutil.which("node"), str(LAUNCHER), "mcp"],
+                input=json.dumps(request) + "\n",
+                capture_output=True,
+                text=True,
+                encoding="utf-8",
+                timeout=8,
+                env=record["environment"],
+            )
+            self.assertEqual(result.returncode, 0)
+            self.assertEqual(result.stderr, "")
+            return json.loads(json.loads(result.stdout)["result"]["content"][0]["text"])
+
+        self.assertEqual(identity(), {"login": "fixture-user"})
+        opened = (self.root / "browser-url").stat().st_mtime_ns
+        (self.profile / "fail-health").touch()
+        failed = subprocess.run(
+            [*record["command"], "connect"],
+            stdin=subprocess.DEVNULL,
+            capture_output=True,
+            text=True,
+            encoding="utf-8",
+            timeout=8,
+            env=record["environment"],
+        )
+        self.assertEqual(json.loads(failed.stdout)["status"], "error")
+        self.assertNotIn("PRIVATE", failed.stdout + failed.stderr)
+        self.assertEqual((self.root / "browser-url").stat().st_mtime_ns, opened)
+        (self.profile / "fail-health").unlink()
+        for action, expected in (
+            ("health", "ok"),
+            ("connect", "ok"),
+            ("disconnect", "ok"),
+            ("health", "need_login"),
+        ):
+            result = subprocess.run(
+                [*record["command"], action],
+                stdin=subprocess.DEVNULL,
+                capture_output=True,
+                text=True,
+                encoding="utf-8",
+                timeout=8,
+                env=record["environment"],
+            )
+            self.assertEqual(result.stderr, "")
+            value = json.loads(result.stdout)
+            self.assertEqual(value["status"], expected)
+            if action == "disconnect":
+                self.assertTrue(value["changed"])
+                self.assertFalse(value["connected"])
+        self.assertFalse((self.profile / "authenticated").exists())
+        missing = identity()
+        self.assertEqual(missing["error"], "connector_auth_required")
+        self.assertEqual(missing["pluginKey"], "wework-github")
+        self.assertEqual(missing["connectorSlug"], "wework-github-account")
+
     @unittest.skipUnless(os.name == "posix", "POSIX signal forwarding")
     def test_sigterm_cleans_python_and_gh_without_page_acknowledgment(self):
         record = self.start(direct_node=True)
@@ -478,10 +586,12 @@ Add-Type -TypeDefinition $source -OutputAssembly $env:WEWORK_TEST_GH_EXE -Output
         self.assertEqual(self.finish(record, code=1)["status"], "cancelled")
         self.assert_auth_children_stopped()
 
-    def test_killing_node_triggers_python_parent_watch_and_cleans_tree_without_ack(
+    def test_killing_native_auth_command_cleans_tree_without_page_ack(
         self,
     ):
-        record = self.start(direct_node=True)
+        # Wework cancels the declared command: sh execs Node on POSIX, while
+        # Windows terminates PowerShell and Node observes its owner's death.
+        record = self.start()
         self.confirm(record)
         record["process"].kill()
         expected = 1 if os.name == "nt" else -signal.SIGKILL
@@ -502,7 +612,7 @@ Add-Type -TypeDefinition $source -OutputAssembly $env:WEWORK_TEST_GH_EXE -Output
         self.assert_auth_children_stopped()
         # A new operation on the same profile proves the killed owner left
         # neither a live account worker nor a held cross-process auth lock.
-        next_record = self.start(direct_node=True)
+        next_record = self.start()
         self.confirm(next_record)
         self.request(next_record, "cancel", method="POST")
         self.state_with(next_record, "cancelled")

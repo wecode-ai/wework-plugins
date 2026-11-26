@@ -1,30 +1,30 @@
 # GitHub 账号管理架构
 
-`wework-github` 是标准 stdio MCP 插件。业务工具通过 `gh api` 直连 GitHub，账号管理通过插件自己的本机浏览器页完成。不声明宿主 Connector、`localAuth`、原生授权卡或私有授权协议环境变量，不要求配置 Client ID，也不部署中转 OAuth 服务。
+`wework-github` 接入 Wework 官方本机认证连接：在插件清单声明 `connectors[].localAuth`，由 Wework 负责连接入口、授权会话、轮询、健康检查、取消和退出。GitHub 授权仍由 gh 官方 OAuth 完成，本机页只展示设备码、共享账号说明和授权结果。业务通过标准 stdio MCP 调用 `gh api`，不经过 ChatGPT/OpenAI Connector。
 
-## 调用与结果语义
+## 官方连接器与调用链
 
-MCP 工具 `open_account_manager` 接受 `action=login` 或 `action=logout`。它创建短期 HTTP 会话，打开执行设备的默认浏览器，然后立即返回 `status=browser_opened`。返回值可以带非秘密 sessionId、标题和说明，不能包含 loopback 秘密地址、验证码、Token 或原生 CLI 诊断。
+连接器 slug 为 `wework-github-account`，插件 key 为 `wework-github`，采用 `on_use` 授权策略。清单声明 `browser_oauth` 及包内相对命令：`health`、`connect`、`disconnect`。Windows 由宿主标准解析规则选择同名 PowerShell 入口。
 
-`browser_opened` 只表示浏览器启动请求被接受，不是账号操作的终态。用户在插件页面核对共享账号说明并确认后，才启动登录或退出；进展、验证码和详细结果在该页面显示。业务工具不会等待这项人工操作。
+`connect` 先检查当前 gh profile。已连接则直接返回 `ok`；网络、权限或 CLI 异常直接返回安全错误，不启动额外登录。仅 `need_login` 时启动本机授权页。内部页面总时限为 540 秒，给宿主 600 秒命令预算预留初次健康检查、浏览器启动、进程清理和结果输出时间。stdout 只输出一份终态 JSON，Wework 随后再执行 `health`，不能将打开页面视为认证成功。
 
-`get_account_manager_status(sessionId, wait_seconds=0..20)` 返回 `waiting_for_user` 或安全终态，可包含 status/hint/code、changed/accountRevoked/connected，不含验证码或本机秘密地址。模型可以有限等待；登录终态为 `ok` 后，再用 `get_me` 核对身份并恢复原工作流。`close_account_manager(sessionId)` 只在用户要求取消时调用，不能用关闭页面来查询结果，也不能撤销已完成的变更。
+业务遇到明确的认证缺失或 HTTP 401，MCP 返回 `connector_auth_required`，同时包含 `pluginKey=wework-github` 与 `connectorSlug=wework-github-account`。模型保留这组错误身份并结束本轮，由宿主解析已安装插件清单并展示官方授权卡。完成授权后只恢复原阻塞步骤；403、404、限流与网络异常不得改成登录错误。
 
-业务请求仅在 HTTP 401 或 GitHub CLI 明确认证缺失时返回 `github_auth_required`，提示打开管理页，不携带宿主 Connector 身份或请求原生卡片。403、404、限流、网络及输出上限保留各自错误含义，不能借机切换认证入口。
+MCP 只暴露 27 个业务工具，不再暴露 `open_account_manager`、`get_account_manager_status` 或 `close_account_manager`。登录、取消和退出通过官方连接器完成，不要求模型操作账号管理工具、读取 Token 或转发验证码。
 
-登录调用 GitHub CLI 官方 OAuth 应用的浏览器授权；验证码必须来自受限解析器，并只允许配对的 `https://github.com/login/device` 地址。令牌获取和保存由 gh 负责。插件不导出 `gh auth token`、不读取认证配置文件、不复制 OAuth 客户端参数，也不新增令牌库。[GitHub CLI 登录说明](https://cli.github.com/manual/gh_auth_login)
+`disconnect` 由 Wework 的显式退出操作触发，直接调用有界的精确账号注销逻辑，不再要求第二次浏览器确认。结果保留 `changed/accountRevoked/connected` 等本机事实，并通过 `hint` 说明其他账号仍可能连接。Wework 可重新执行 `health` 核对当前连接。
 
-## 会话所有权
+本机连接采用公开的 `localAuth` 协议，不依赖 GitHub 专用宿主代码或私有事件流。本版未声明 `accountAuth`，不上传或同步 gh 凭据，不代表云端托管认证可用。
 
-HTTP 会话依附创建它的 MCP 进程，最长 600 秒，不依赖宿主的登录或退出 RPC 超时。MCP 进程退出、会话关闭、取消或总时限到期时，由插件收敛服务和自有进程。不得启动失去监督的永久后台服务。
+## 授权与会话所有权
 
-内部 `browser_auth.start(...)` 返回会话对象：`public_result()` 只生成可返回模型的启动结果，`outcome()` 在操作完成后立即提供安全终态，`wait()` 等待整个会话关闭，`close()` 取消并清理。状态查询不需要等待页面确认；HTTP 服务仍保留到页面确认或有界期限。页面读取状态续约 lease，失联容忍期为 120 秒，以容忍用户切到 GitHub 标签页后浏览器限制后台计时器的情况；绝对总时限仍然有效。[Chrome 后台计时器说明](https://developer.chrome.com/blog/timer-throttling-in-chrome-88/)
+登录调用 GitHub CLI 官方 OAuth 应用的浏览器授权；验证码只来自受限解析器，且必须与固定的 `https://github.com/login/device` 地址配对。令牌获取和保存由 gh 负责。插件不运行 `gh auth token`，不读取认证文件，不复制客户端参数，也不新增令牌库。
 
-账号 CLI 不要求特殊协议参数或环境握手，也不把 null stdin 当作用户取消。MCP 的 stdin EOF 则表示宿主连接结束，MCP shutdown 或终止信号负责关闭其持有的账号会话。
+Wework 的 browser_oauth 会话持有认证命令。命令同步等待本机页与授权终态；宿主取消或退出时，启动器/父进程监视收敛页面、账号操作及插件自有子进程。不依赖 MCP 进程持有认证页，也不把认证命令的空 stdin 当作取消。
 
-页面关闭通知是尽力发送，不能保证立即送达；lease、总时限和 MCP 生命周期是后备清理机制。确认前取消不得开始账号变更。登录已保存的结果不会因取消自动撤销；退出一旦提交，也不能把关闭页面解释为恢复已删除的凭据。
+本机页继续提供显式确认、取消、心跳与终态确认。失联容忍期为 120 秒，总期限始终有效。终态确认或有界期限后关闭 HTTP 服务；页面关闭通知仅为尽力发送。确认前取消不得修改账号；已保存的登录或已完成的退出不因取消自动撤销。
 
-页面先渲染终态，再确认已收到结果；未确认时，服务最多保留到完成后 120 秒或会话总时限，以较早者为准。成功依据真实的 gh 执行和连接验证，页面不能通过任意请求把服务器状态改成成功。页面意外失联后，应重新检查 `get_me`，不能据网络错误推断账号未发生变化。
+成功必须来自真实 gh 执行与健康检查，页面不能通过任意请求伪造成功。取消、失败或意外断开后应重新检查当前身份，不能据页面状态推断账号未发生变化。
 
 ## HTTP 与展示边界
 
@@ -48,22 +48,16 @@ MCP 白名单显式保留用户的 `BROWSER` 配置及 Linux 图形会话变量�
 
 登录和退出使用同一 profile 的跨进程锁，覆盖账号操作、验证及自有子进程清理。锁只约束遵守该协议的插件进程，不能约束外部直接运行的 gh、旧宿主内置登录或其他插件；插件不能扫描或结束这些外部进程。
 
-退出页确认操作执行时的活动账号，不展示另一个账号的快照作为承诺；等待期间避免在外部入口切换账号。实际删除使用明确的 `--hostname github.com --user <active-login>`，只移除该账号的本地 CLI 凭据，保留其他已保存账号，不撤销服务端 OAuth grant。其他账号可能接替活动状态，因此注销一个账号后 `connected` 仍可为 true。[GitHub CLI 退出说明](https://cli.github.com/manual/gh_auth_logout)
+官方退出操作只处理执行时的活动账号；等待期间避免在外部入口切换账号。手工排障的退出页仍提供额外确认，但官方 `disconnect` 不启动该页面。实际删除使用明确的 `--hostname github.com --user <active-login>`，只移除该账号的本地 CLI 凭据，保留其他已保存账号，不撤销服务端 OAuth grant。其他账号可能接替活动状态，因此注销一个账号后 `connected` 仍可为 true。[GitHub CLI 退出说明](https://cli.github.com/manual/gh_auth_logout)
 
-内部退出结果的 `changed=true`、`accountRevoked=true` 表示 gh 已报告移除所选账号的本地凭据，后者只是历史字段名，不代表撤销 GitHub 服务端授权或全局断开。后续健康检查失败仍保留修改标记，并提示检查连接；不能诱导重试注销而删除下一账号。变更前失败带 false；健康未知时不填 `connected=false`。这些安全结果供页面与状态工具消费，不依赖宿主授权结果归一化。
+内部退出结果的 `changed=true`、`accountRevoked=true` 表示 gh 已报告移除所选账号的本地凭据，后者只是历史字段名，不代表撤销 GitHub 服务端授权或全局断开。后续健康检查失败仍保留修改标记，并提示检查连接；不能诱导重试注销而删除下一账号。变更前失败带 false；健康未知时不填 `connected=false`。这些安全结果由认证命令返回；标准宿主可能只保留 status/hint，因此 hint 也明确说明剩余账号和已生效的变更，当前连接以重新执行 health 为准。
 
 登录创建的 gh 进程在 POSIX 使用独立进程组，在 Windows 使用 Job Object；清理涵盖主进程先退出、后代仍占用管道的情况。不使用全局 gh 进程查杀。卸载插件不会注销共享账号。
 
 ## 验证范围
 
-使用 fake CLI、临时 profile 和本机 HTTP fixture 验证以下行为，不操作开发者真实账号：
+协议集成测试使用 fake gh、隔离 profile 与真实 Node/Python/HTTP，不读取开发者凭据。覆盖声明的连接器身份、health/connect/disconnect、成功/取消/失败终态、已登录快速返回、网络失败不启动登录、MCP 实际业务路径与授权错误、退出后状态、自有子进程树清理和 Windows 启动器。
 
-| 范围 | 验收点 |
-| --- | --- |
-| MCP | 打开管理页立即返回 browser_opened，查询返回等待或安全终态；两者均不含秘密地址或验证码，详细交互在本机页完成。 |
-| HTTP | loopback、Host/Origin、CSRF、路径、方法、正文上限、缓存与 CSP；恶意输入不能造成账号操作或脚本执行。 |
-| 生命周期 | 确认前取消、页面失联、绝对时限、终态送达、MCP 退出及自有子孙进程清理。 |
-| 账号 | 登录/退出锁、环境 Token 限制、只移除活动账号、其他账号接替、变更后健康失败仍保留事实。 |
-| 平台 | Windows/macOS/Linux 启动器和默认浏览器分别验证；结构 mock 不等于实际 Windows WinAPI 或浏览器验收。 |
+原有 HTTP 安全与账号状态测试继续覆盖 Host/Origin/CSRF、CSP、恶意字段、环境 Token、活动账号精确删除、其他账号保留、注销后的健康失败等边界。删除的是由 MCP 账号管理工具承担的旧入口，业务认证现由官方连接器触发。
 
-真实 GitHub 浏览器授权、无图形界面失败体验以及各宿主对用户所选 MCP 的路由都需另行验收。宿主全局规则若抢占用户选中的插件，应明确报告路由限制；本仓库不修改宿主，也不能用另一入口成功代替本插件验收。
+上述协议测试不等于 Wework GUI 或真实 GitHub OAuth 端到端验证。实际目标环境仍须核对插件详情连接入口、授权卡、真实登录/取消/失败、业务调用与退出后健康状态。若旧会话缓存了 0.1.x MCP，需重新加载插件运行时；宿主全局路由覆盖用户选择时应报告限制，不能换另一入口冒充验收通过。

@@ -1,6 +1,6 @@
 ---
 name: wework-github
-description: 使用 GitHub（Wework）具名 MCP 工具管理仓库、Issue、PR 和 Actions；账号操作使用插件自带的本机浏览器管理页，复用执行设备的 GitHub CLI 官方授权。
+description: 使用 GitHub（Wework）具名 MCP 工具管理仓库、Issue、PR 和 Actions；账号操作使用 Wework 官方本机认证连接，复用执行设备的 GitHub CLI 官方授权。
 ---
 
 # GitHub（Wework）
@@ -9,16 +9,14 @@ description: 使用 GitHub（Wework）具名 MCP 工具管理仓库、Issue、PR
 
 ## 账号管理
 
-- 先发现服务器工具，用 `get_me` 核对身份及目标 `owner/repo`。
-- 返回 `github_auth_required` 时，调用 `open_account_manager`，参数为 `{"action":"login"}`。告知用户在执行设备默认浏览器打开的插件页面确认操作、完成 GitHub 官方授权并查看结果。不要请求宿主原生授权卡、伪造 connector marker 或启动另一套认证。
-- `browser_opened` 只表示浏览器启动请求被接受，不表示登录或退出成功。使用返回的非秘密 `sessionId` 调用 `get_account_manager_status`；`wait_seconds` 为 0–20 秒，未完成返回 `waiting_for_user`，只能有限等待。登录的真实终态为 `ok` 后，用 `get_me` 重新核对身份再继续被阻塞步骤；写操作重试前先检查是否已经生效，避免重复。
-- 用户明确取消时才调用 `close_account_manager(sessionId)`。关闭会话不会撤销已完成的账号变更；不要为获得工具结果而关闭仍待用户操作的页面。
-- 用户要求退出时，调用 `open_account_manager`，参数为 `{"action":"logout"}`；确认与真实结果都在插件页面。不要直接运行 CLI 注销或把打开页面当作账号已退出。
-- 退出状态中 `changed/accountRevoked=true` 表示本地凭据已经移除，即使后续检查报错也不能重试退出而删除下一账号。`connected=true` 可以表示其他已保存账号仍在连接；不能声称全部账号已退出。状态工具不会返回本机秘密地址或验证码。
-- 本插件与相同执行设备、相同 gh 配置下的其他入口共享活动账号。退出只移除执行时活动账号的本地凭据，其他已保存账号可能接替；不等于全部断开或撤销 GitHub 服务端授权。卸载不会自动退出。
-- 不索取 Token，不运行 `gh auth token`，不读取认证文件、环境变量中的 Token 或凭据库，不额外启动终端交互登录。验证码和本机秘密地址只能由插件页面处理，不得转发到模型、聊天、日志或公网回调。
-- `gh_missing` 表示执行设备缺少 GitHub CLI；浏览器启动失败或不支持的执行环境应明确报告，不能声称用户设备已打开网页。浏览器实际在执行设备打开，远程无图形界面环境不能假定可用。
-- 403、404、限流及网络故障不能当作未登录。报告实际错误，不回退到 ChatGPT connector 或另一套身份。
+- 先用 `get_me` 核对当前身份及目标 `owner/repo`。MCP 只提供业务工具，账号操作由 Wework 官方认证连接管理。
+- 工具返回 `connector_auth_required` 时，保留其完整错误身份：`pluginKey=wework-github`、`connectorSlug=wework-github-account`。在回复中保留标准错误 JSON 并结束本轮，让 Wework 显示该连接器的授权卡；不要自己发起账号工具调用、终端登录或转发验证码。
+- 用户通过 Wework 授权卡或插件详情的 GitHub CLI 账号连接完成登录后，从原阻塞步骤继续，先用 `get_me` 再核对身份。写操作重试前检查是否已经生效，避免重复提交。
+- 浏览器打开不是登录成功。等待官方连接状态验证完成；取消使用官方取消入口或本机页取消按钮。不要把取消等同于撤销已保存的登录。
+- 用户要求退出时，使用 Wework 插件详情的 GitHub CLI 账号退出入口，不通过模型直接运行 `gh auth logout`。退出只移除执行时活动账号的本机凭据；其他已保存账号可能接替，不能宣称全部账号已退出。
+- 登录、切换或退出影响同一设备同一 gh profile 下的其他入口。卸载不会退出共享账号，退出也不撤销 GitHub 服务端授权。
+- 不索取 Token，不运行 `gh auth token`，不读取认证文件、环境 Token 或凭据库。验证码与秘密页面地址只在本机处理，不进入模型、聊天、日志或公网回调。
+- 403、404、限流与网络故障保留实际错误，不改写为登录错误，也不回退到 ChatGPT Connector 或其他身份。
 
 ## 工作流
 
@@ -32,6 +30,6 @@ description: 使用 GitHub（Wework）具名 MCP 工具管理仓库、Issue、PR
 
 ## 运行边界
 
-执行设备需要 GitHub CLI、Node.js 18+、Python 3.10+ 和可打开的默认浏览器。账号页面由 MCP 进程持有，最长 600 秒；页面确认、取消、失联和终态由插件管理，不依赖宿主授权协议或环境握手。
+执行设备需要 GitHub CLI、Node.js 18+、Python 3.10+ 和可打开的默认浏览器。认证通过清单声明的标准 `localAuth` 命令执行，凭据与业务调用复用相同 gh 环境；未实现跨设备账号同步。没有图形会话或浏览器打开失败时明确报告，不能声称用户已看到页面。
 
-认证和业务调用沿用相同的 gh 环境。插件账号锁只覆盖遵守同一协议的插件进程，不能约束外部 gh 或旧宿主内置登录；等待账号操作时避免在其他入口切换账号。详见 [认证架构](../../docs/auth-architecture.md)。
+账号锁只覆盖遵守同一协议的插件进程，不能约束外部 gh 或其他入口。详情见 [认证架构](../../docs/auth-architecture.md)。

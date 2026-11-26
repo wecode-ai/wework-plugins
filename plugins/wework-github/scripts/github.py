@@ -29,7 +29,9 @@ def present(value):
 
 def main():
     parser = argparse.ArgumentParser(description=__doc__)
-    parser.add_argument("command", choices=("health", "login", "logout", "mcp"))
+    parser.add_argument(
+        "command", choices=("health", "connect", "disconnect", "login", "logout", "mcp")
+    )
     args = parser.parse_args()
     if args.command == "mcp":
         mcp.serve()
@@ -37,6 +39,10 @@ def main():
     try:
         if args.command == "health":
             value = cli.health()
+        elif args.command in {"connect", "disconnect"}:
+            from github_connector import native_auth
+
+            value = getattr(native_auth, args.command)()
         else:
             from github_connector import browser_auth
 

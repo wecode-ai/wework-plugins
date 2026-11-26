@@ -54,7 +54,20 @@ class PackageTests(unittest.TestCase):
         self.assertEqual(manifest["name"], "wework-github")
         self.assertNotIn("apps", manifest)
         self.assertFalse((PLUGIN / ".app.json").exists())
-        self.assertNotIn("connectors", manifest)
+        (connector,) = manifest["connectors"]
+        self.assertEqual(connector["slug"], "wework-github-account")
+        self.assertEqual(connector["authPolicy"], "on_use")
+        native = connector["localAuth"]
+        self.assertEqual(native["kind"], "browser_oauth")
+        self.assertEqual(native["health"], ["scripts/local-auth.sh", "health"])
+        self.assertEqual(native["start"], ["scripts/local-auth.sh", "connect"])
+        self.assertEqual(native["logout"], ["scripts/local-auth.sh", "disconnect"])
+        self.assertFalse(native["logoutOnUninstall"])
+        self.assertLessEqual(native["timeoutSeconds"], 600)
+        self.assertEqual(manifest["version"], mcp.VERSION)
+        # This connection is device-local. No credential-export adapter or
+        # shared OpenAI/ChatGPT app identity is required to show its login card.
+        self.assertNotIn("accountAuth", connector)
         mcp_config = json.loads((PLUGIN / ".mcp.json").read_text(encoding="utf-8"))
         server = mcp_config["mcpServers"]["wework_github"]
         self.assertEqual(
@@ -178,7 +191,11 @@ class StdioTests(unittest.TestCase):
         messages = [json.loads(line) for line in result.stdout.splitlines()]
         self.assertEqual([value["id"] for value in messages], [1, 2, 3])
         self.assertEqual(messages[0]["result"]["serverInfo"]["name"], "wework_github")
-        self.assertEqual(len(messages[1]["result"]["tools"]), 30)
+        self.assertEqual(len(messages[1]["result"]["tools"]), 27)
+        self.assertNotIn(
+            "open_account_manager",
+            {tool["name"] for tool in messages[1]["result"]["tools"]},
+        )
         self.assertTrue(messages[2]["result"]["isError"])
         error = json.loads(messages[2]["result"]["content"][0]["text"])
         self.assertEqual(
@@ -234,10 +251,40 @@ class StdioTests(unittest.TestCase):
                 }
             )
         error = json.loads(result["result"]["content"][0]["text"])
-        self.assertEqual(error["code"], "github_auth_required")
-        self.assertNotIn("pluginKey", error)
-        self.assertNotIn("connectorSlug", error)
-        self.assertIn("open_account_manager", error["message"])
+        self.assertEqual(error["error"], "connector_auth_required")
+        self.assertEqual(error["code"], "connector_auth_required")
+        manifest = json.loads(
+            (PLUGIN / ".codex-plugin/plugin.json").read_text(encoding="utf-8")
+        )
+        self.assertEqual(error["pluginKey"], manifest["name"])
+        self.assertEqual(error["connectorSlug"], manifest["connectors"][0]["slug"])
+        self.assertNotIn("open_account_manager", error["message"])
+
+    def test_non_auth_failures_never_request_a_connector_login(self):
+        error_type = importlib.import_module("github_connector.errors").GitHubError
+        for code in (
+            "github_permission_denied",
+            "github_not_found",
+            "github_rate_limited",
+            "github_network_error",
+        ):
+            client = mock.Mock()
+            client.request.side_effect = error_type(code, "Public failure")
+            with (
+                self.subTest(code=code),
+                mock.patch.object(mcp, "GitHubClient", return_value=client),
+            ):
+                response = mcp.dispatch(
+                    {
+                        "jsonrpc": "2.0",
+                        "id": 1,
+                        "method": "tools/call",
+                        "params": {"name": "get_me"},
+                    }
+                )
+            result = json.loads(response["result"]["content"][0]["text"])
+            self.assertEqual(result["code"], code)
+            self.assertNotIn("connectorSlug", result)
 
     def test_invalid_messages_do_not_crash_or_echo_input(self):
         output = io.StringIO()

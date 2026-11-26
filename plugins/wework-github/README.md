@@ -1,58 +1,45 @@
 # GitHub（Wework）
 
-`wework-github` 提供仓库、Issue、PR 和 Actions 的本地 MCP 工具，复用执行设备上的 **GitHub CLI 官方授权**。用户无需注册 OAuth App、填写 Client ID 或保存 Secret。插件的授权与 GitHub 业务调用直接使用 GitHub，不依赖 ChatGPT connector 或 OpenAI 接口。
+`wework-github` 通过 Wework 官方本机认证连接管理 GitHub CLI 账号，通过标准 stdio MCP 提供仓库、代码、Issue、PR、Review 和 Actions 工具。认证使用 GitHub CLI 官方 OAuth，业务调用经 `gh api` 直连 GitHub，无需申请或配置 Client ID，不经过 ChatGPT/OpenAI Connector。
 
-业务链路是 `宿主 → wework_github MCP → gh api → GitHub`。登录、验证码、共享账号说明、退出确认和结果展示都由插件自己的本机浏览器页负责，不要求宿主提供原生授权卡或特殊授权协议。
+## 连接与使用
 
-## 使用与登录
+执行设备需要 GitHub CLI（`gh`）、Node.js 18+、Python 3.10+ 和可用的默认浏览器。Python 无第三方依赖；Windows 优先探测 `py -3`，实际运行解析得到的 Python 可执行文件。
 
-实际执行插件的设备需要 GitHub CLI (`gh`)、Node.js 18+ 和 Python 3.10+；Python 无第三方依赖。
+1. 导入并启用 **GitHub（Wework）**。插件声明标准 `connectors[].localAuth`，连接器为 `wework-github-account`，按需授权（`on_use`）。
+2. 在插件详情的 **GitHub CLI 账号** 连接入口点击连接。业务工具发现认证缺失时，也会返回标准 `connector_auth_required` 和准确的插件/连接器身份，由 Wework 显示授权卡。
+3. Wework 执行 `connect`。已有可用 gh 账号时直接复用；需要登录时打开执行设备上的临时本机授权页。核对共享账号说明、确认继续，点击“复制验证码”，前往 GitHub 官方页面粘贴并完成授权。浏览器不允许自动复制时，页面会选中验证码并提示复制快捷键，轮询不会打断选区。
+4. 插件等待真实授权终态，只在验证与清理完成后输出一份 JSON。Wework 再运行健康检查并更新连接状态；授权成功后，从原阻塞步骤继续，并用 `get_me` 核对当前身份。
 
-启动器会自动查找 Python；Windows 优先使用 `py -3`，再尝试 `python` 和 `python3`。下方验证命令在 Windows 可将 `python3` 替换为 `py -3`。
+仅打开浏览器不代表登录成功。取消使用 Wework 的官方取消入口或本机页取消按钮；取消会结束该次授权并清理插件自有子进程，不撤销已保存的登录。失败与网络异常不能显示为已连接，也不能诱导用户反复登录。
 
-1. 安装并启用 `GitHub（Wework）`。已有 `gh` 活动账号时，可直接调用业务工具。
-2. 需要连接时，调用 `open_account_manager`，参数为 `{"action":"login"}`。插件在**执行设备的默认浏览器**打开自己的临时本机页面。
-3. 在页面核对共享账号说明并确认继续。插件运行 GitHub CLI 官方浏览器授权，在本机页展示一次性验证码和经过校验的 GitHub 官方入口；点击“复制验证码”后到 GitHub 页面粘贴并完成授权。浏览器不允许自动复制时，页面会选中验证码并提示使用复制快捷键；状态刷新不会打断文字选择。
-4. 回到本机页查看真实结果。模型通过 `get_account_manager_status` 使用返回的 `sessionId` 检查安全状态；登录确认成功后，再用 `get_me` 核对身份并继续原工作流。
+403、404、限流和网络异常保留实际业务错误；只有 CLI 明确认证缺失或 HTTP 401 才请求宿主授权。插件不提供模型可调用的登录、退出、验证码或凭据导出工具，MCP 仅暴露 27 个具名业务工具。
 
-`open_account_manager` 返回 `browser_opened` 只表示浏览器启动请求被接受，**不表示登录、退出或连接验证成功**。详细交互和结果在页面展示；状态工具只返回不含秘密的进度或终态。工具不会把本机页面的秘密地址、验证码或 Token 返回给模型。业务请求遇到 401 或 CLI 认证缺失时返回 `github_auth_required`，应打开本插件的账号管理页；403、404、网络和限流错误不能当作未登录。
+## 官方认证协议
 
-`get_account_manager_status` 的 `wait_seconds` 为 0–20 秒，未完成时返回 `waiting_for_user`；可以有限等待，不应无限轮询。用户要求取消时调用 `close_account_manager(sessionId)`，不会把已完成的登录或退出倒回原状态。
+- 连接器：`wework-github-account`；插件 key：`wework-github`。
+- `localAuth.kind`：`browser_oauth`。
+- 健康检查：`scripts/local-auth.sh health`。
+- 连接：`scripts/local-auth.sh connect`；最长 600 秒，预留初次健康检查与清理预算。
+- 退出：`scripts/local-auth.sh disconnect`；由 Wework 的退出操作发起，不再打开第二个退出确认页。
+- Windows 由宿主标准规则选择同名 `local-auth.ps1`；JSON 通过 UTF-8 stdout 返回，空 stdin 不解释为取消。
+- `logoutOnUninstall: false`：卸载不退出共享账号。
 
-浏览器打开在执行设备，而非必然在当前查看聊天的设备。远程或无图形界面的执行环境不保证可用；无法打开时会返回明确的浏览器启动错误，不能声称页面已经可见，也不会创建公网回调、索取 Token 或把验证码转发到聊天。
+本机浏览器页用于 GitHub 设备码展示与共享账号确认；连接入口、轮询、健康检查、取消和退出接入 Wework 标准认证连接。无需修改 Wework 主仓库或注册 GitHub 专用宿主路由，也不使用私有流式授权事件协议。
+
+本版仅支持执行设备本机连接，未声明跨设备凭据同步的 `accountAuth`，也不提供云端凭据托管。不要把本机 `localAuth` 接入等同于跨设备账号同步。
 
 ## 共享账号与退出
 
-本插件与同一执行设备、同一配置下的终端 `gh`、原 GitHub 入口**共享活动账号**。登录、切换和退出会影响这些入口；卸载插件不会退出共享账号。
+插件与同一设备、同一 gh 配置下的终端及其他 GitHub 入口共享活动账号。登录、切换或退出会影响这些入口；在操作期间避免在其他入口切换账号。
 
-需要退出时，调用 `open_account_manager`，参数为 `{"action":"logout"}`，在本机页面核对影响并确认。退出移除执行时活动账号的本地 CLI 凭据；其他已保存账号会保留，并可能成为新的活动账号。因此页面可能显示“所选账号已退出，但设备仍有其他账号连接”。这不等于全部账号已退出，也不撤销 GitHub 服务端授权；服务端撤销应由用户在 [GitHub Settings → Applications](https://github.com/settings/applications) 操作。
+在 Wework 连接入口退出时，只移除执行时活动账号的本机凭据，保留其他已保存账号。其他账号可能接替成为活动账号，因此退出后的健康检查仍可能显示已连接；应刷新并核对身份，不要反复退出而删除下一账号。退出不撤销 GitHub 服务端 OAuth 授权，卸载也不会自动退出。
 
-确认前取消不会开始账号操作；退出提交后不能保证撤回。若凭据已移除而后续健康检查失败，页面保留已修改的事实，提示重新检查连接，不能通过反复退出删除下一账号。等待操作期间请勿在其他入口切换账号。
+凭据存储由 gh 管理。插件不读取认证文件、导出 `gh auth token` 或额外保存 Token。`GH_TOKEN`、`GITHUB_TOKEN` 优先于已保存凭据；显式环境 Token 可用于业务与健康检查，但不能通过本机退出删除，也不会由浏览器登录覆盖。
 
-凭据保存和账户切换由 `gh` 管理。GitHub CLI 通常使用系统凭据库；凭据库不可用时，其官方实现可能回退到自身配置文件。插件不额外创建令牌存储、不运行 `gh auth token`、不读取认证文件或向用户索取 Token。
+认证命令和 MCP 沿用相同的 gh 环境与 profile；`GH_CONFIG_DIR`、`XDG_CONFIG_HOME`、`APPDATA` 决定配置目录。MCP 白名单只声明这些变量名及浏览器、图形会话和代理变量名，不打包变量值。
 
-## 配置与生命周期
-
-沿用 GitHub CLI 的环境优先级：`GH_TOKEN`、`GITHUB_TOKEN` 优先于已保存认证；`GH_CONFIG_DIR` 等配置目录变量决定使用的 profile。显式 Token 环境不能由浏览器登录替换，也不能通过退出删除；页面会说明限制，不展示变量内容。
-
-MCP 的 `env_vars` 白名单转发上述认证变量、`XDG_CONFIG_HOME`、`APPDATA` 及大小写代理变量，使账号管理与业务工具使用一致环境。浏览器启动同时保留 `BROWSER` 及 Linux 图形会话所需的 `DISPLAY`、`WAYLAND_DISPLAY`、`XDG_RUNTIME_DIR`、`DBUS_SESSION_BUS_ADDRESS`、`XDG_CURRENT_DESKTOP`、`XDG_SESSION_TYPE`。包内只保存变量名。业务固定使用 `--hostname github.com`，调试输出变量不会转发。
-
-账号管理会话由插件 MCP 进程持有，最长 600 秒，并通过页面心跳、取消、终态确认和进程退出清理临时 HTTP 服务及登录子进程。临时服务只监听 loopback，不部署公网服务。页面关闭通知是尽力发送，失联后由会话期限收敛；已经完成的账号变更不会被取消自动撤销。
-
-插件按同一 gh profile 使用跨进程账号锁。这个锁只约束遵守同一锁协议的插件进程，**不覆盖外部直接运行的 `gh`、旧宿主内置登录或其他插件**；插件不会扫描或终止这些外部进程。具体接口与安全边界见 [认证架构](docs/auth-architecture.md)。
-
-## 工具与宿主边界
-
-- 27 个具名 REST 工具覆盖身份、仓库、文件、分支、提交、Issue、PR、Review 及 Actions；另有打开、查询和关闭账号管理页的 3 个工具，共 30 个。
-- REST 工具只接受固定业务参数，不接受任意 URL、CLI 参数、`--jq` 表达式或 shell 命令，不提供 Copilot 委派工具。
-- JSON 正文经 stdin 传给 `gh api --input -`。请求时间和输出有上限；列表按 `page/per_page` 分页，写操作不自动重试。
-- 本版支持 `github.com`；GitHub Enterprise、云端账号托管和独立于 `gh` 的多账号连接不在本版范围。
-
-插件使用标准 stdio MCP 和 Skill，不声明宿主 Connector 或 `localAuth`。插件名及 Skill 为 `wework-github`，MCP server key 为 `wework_github`；安装、更新与卸载独立于上游 GitHub 插件。
-
-宿主若用自身全局 GitHub 规则覆盖用户选择的本插件，仍需宿主另行修正路由；本仓库不会改变这些规则，也不能用切换到其他连接器来冒充本插件调用成功。真实 GitHub 授权和各宿主端到端流程需分别验收。
-
-## 验证与上游
+## 验证与兼容边界
 
 从仓库根目录运行：
 
@@ -61,8 +48,10 @@ python3 -m unittest discover -s tests -p "test_wework_github*.py" -v
 python3 -m unittest discover -s tests -v
 ```
 
-测试使用隔离临时目录和 fake CLI，覆盖工具路由、请求边界、页面安全、取消、超时及自有进程清理，不修改开发者的真实 `gh` 账号。单测和 Windows 结构检查不能代替真实平台浏览器与 GitHub 授权验收。
+协议集成测试使用 fake CLI、临时 profile 和真实 Node/Python/HTTP，覆盖 manifest 认证身份、连接成功/失败/取消、重复连接、业务工具调用、网络失败不触发登录、退出后健康状态、标准授权错误及自有进程树清理。它们不等于真实 GitHub OAuth 或 Wework GUI 端到端验收。
+
+0.2.0 将 0.1.x 的三个 MCP 账号管理工具迁到 Wework 官方认证连接，更新安装后需重新加载插件运行时。已有 gh 凭据保留。单独手工排障仍可运行 `scripts/local-auth.sh login` 或 `logout`，这两个命令使用本机页，不是模型工具，也不是 Wework 声明的认证入口。
+
+真实 GitHub 授权、Windows 原生浏览器体验及宿主对用户所选 MCP 的路由需在目标环境验证。详情见 [认证架构](docs/auth-architecture.md)。本次 PR 只包含 GitHub，Figma 不在交付范围。
 
 工作流参考 [openai/plugins 的 github 插件](https://github.com/openai/plugins/tree/0722921d5542fc593105c27bd52630babd8b8c2a/plugins/github)，基线 commit `0722921d5542fc593105c27bd52630babd8b8c2a`、版本 `0.1.12`。本插件移除其 ChatGPT 应用绑定和公共 OAuth 配置，使用自有图标与本仓 Apache-2.0 许可。
-
-官方说明：[GitHub CLI 登录](https://cli.github.com/manual/gh_auth_login)、[API 调用](https://cli.github.com/manual/gh_api)、[环境优先级](https://cli.github.com/manual/gh_help_environment)、[本机退出](https://cli.github.com/manual/gh_auth_logout)。

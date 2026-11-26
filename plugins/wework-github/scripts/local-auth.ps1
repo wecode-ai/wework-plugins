@@ -1,5 +1,5 @@
 # Keep CLI argv literal on Windows PowerShell 5.1.
-# Authentication pages and confirmation are owned by the plugin.
+# Wework invokes health/connect/disconnect through the public localAuth contract.
 $ErrorActionPreference = 'Stop'
 Set-StrictMode -Version Latest
 $utf8 = [System.Text.UTF8Encoding]::new($false)
